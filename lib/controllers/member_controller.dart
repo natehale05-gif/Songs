@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 
 import '../models/connection_info.dart';
 import '../models/session_snapshot.dart';
-import '../services/discovery_service.dart';
 import '../services/join_code.dart';
 import '../services/live_client.dart';
+import '../services/session_discovery.dart';
 
 /// Drives the member experience: joining a session and mirroring the leader.
 class MemberController extends ChangeNotifier {
@@ -49,7 +49,7 @@ class MemberController extends ChangeNotifier {
     _statusMessage = 'Looking for a session on this network...';
     notifyListeners();
 
-    final ConnectionInfo? info = await DiscoveryService.resolve(normalized);
+    final ConnectionInfo? info = await resolveSession(normalized);
     if (info == null) {
       _status = LiveClientStatus.error;
       _statusMessage =

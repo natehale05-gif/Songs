@@ -16,8 +16,11 @@ enum SyncType {
   /// Leader -> member: a full snapshot of what should be shown.
   state,
 
-  /// Either direction: keep-alive.
+  /// Either direction: keep-alive / presence heartbeat.
   ping,
+
+  /// Member -> leader: leaving the session.
+  leave,
 
   unknown,
 }
@@ -25,7 +28,14 @@ enum SyncType {
 /// A single framed message on the wire. Kept deliberately small and JSON based
 /// so it is trivial to debug and works across any platform.
 class SyncMessage {
-  const SyncMessage({required this.type, this.snapshot, this.name, this.code, this.reason});
+  const SyncMessage({
+    required this.type,
+    this.snapshot,
+    this.name,
+    this.code,
+    this.reason,
+    this.id,
+  });
 
   final SyncType type;
   final SessionSnapshot? snapshot;
@@ -33,8 +43,16 @@ class SyncMessage {
   final String? code;
   final String? reason;
 
-  factory SyncMessage.join({required String code, required String name}) =>
-      SyncMessage(type: SyncType.join, code: code, name: name);
+  /// Opaque member identifier, used for presence tracking on transports that
+  /// share a single message bus (e.g. the web BroadcastChannel transport).
+  final String? id;
+
+  factory SyncMessage.join({
+    required String code,
+    required String name,
+    String? id,
+  }) =>
+      SyncMessage(type: SyncType.join, code: code, name: name, id: id);
 
   factory SyncMessage.joined() => const SyncMessage(type: SyncType.joined);
 
@@ -44,7 +62,11 @@ class SyncMessage {
   factory SyncMessage.state(SessionSnapshot snapshot) =>
       SyncMessage(type: SyncType.state, snapshot: snapshot);
 
-  factory SyncMessage.ping() => const SyncMessage(type: SyncType.ping);
+  factory SyncMessage.ping({String? id}) =>
+      SyncMessage(type: SyncType.ping, id: id);
+
+  factory SyncMessage.leave({String? id}) =>
+      SyncMessage(type: SyncType.leave, id: id);
 
   Map<String, dynamic> toJson() => {
         'type': type.name,
@@ -52,6 +74,7 @@ class SyncMessage {
         if (name != null) 'name': name,
         if (code != null) 'code': code,
         if (reason != null) 'reason': reason,
+        if (id != null) 'id': id,
       };
 
   String encode() => jsonEncode(toJson());
@@ -73,6 +96,7 @@ class SyncMessage {
         name: json['name'] as String?,
         code: json['code'] as String?,
         reason: json['reason'] as String?,
+        id: json['id'] as String?,
       );
     } catch (_) {
       return const SyncMessage(type: SyncType.unknown);
