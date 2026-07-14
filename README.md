@@ -38,6 +38,29 @@ leader changes something.
 All of this works with **no internet** — the devices only need to be on the
 same local network.
 
+## Try it in a browser (GitHub Pages)
+
+A GitHub Actions workflow (`.github/workflows/deploy-web.yml`) builds the app
+for the web and publishes it to GitHub Pages on every push to `main` (and can be
+run manually from the Actions tab).
+
+**One-time setup:** in the repository, go to **Settings → Pages** and set
+**Source** to **GitHub Actions**. After the workflow runs, the app is available
+at `https://<your-user>.github.io/<repo>/`.
+
+Because a web browser cannot open the LAN server that the native app uses, the
+web build ships a **same-browser transport** built on `BroadcastChannel`. To try
+the live small-group flow on GitHub Pages:
+
+1. Open the site and choose **Lead a session** → **Start session**. Note the
+   join code.
+2. Open the same site in a **second browser tab**, choose **Join a session**,
+   and enter that code.
+3. Pick songs and navigate on the leader tab — the member tab follows live.
+
+On real phones/tablets the native build uses the offline LAN transport described
+below, which works across devices with no internet.
+
 ## Project layout
 
 ```
