@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -81,8 +82,13 @@ class _StartSessionFormState extends State<_StartSessionForm> {
       children: <Widget>[
         const SizedBox(height: 8),
         Text(
-          'Start a live session and your group can follow along on their own '
-          'devices — no internet required, just the same WiFi or a hotspot.',
+          kIsWeb
+              ? 'Start a live session, then open Songs in another browser tab '
+                  'and join with the code to see members follow along. (On '
+                  'phones this works offline over WiFi between real devices.)'
+              : 'Start a live session and your group can follow along on their '
+                  'own devices — no internet required, just the same WiFi or a '
+                  'hotspot.',
           style: Theme.of(context).textTheme.bodyLarge,
         ),
         const SizedBox(height: 24),

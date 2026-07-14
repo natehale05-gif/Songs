@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -100,8 +101,12 @@ class _JoinFormState extends State<_JoinForm> {
       children: <Widget>[
         const SizedBox(height: 8),
         Text(
-          'Join your leader\'s session to follow the lyrics live. Make sure '
-          'you are on the same WiFi network (or their hotspot).',
+          kIsWeb
+              ? 'Join your leader\'s session to follow the lyrics live. In the '
+                  'web preview, open Songs in another tab of this browser, '
+                  'start leading there, then enter that join code here.'
+              : 'Join your leader\'s session to follow the lyrics live. Make '
+                  'sure you are on the same WiFi network (or their hotspot).',
           style: theme.textTheme.bodyLarge,
         ),
         const SizedBox(height: 24),
@@ -137,12 +142,14 @@ class _JoinFormState extends State<_JoinForm> {
               : const Icon(Icons.login),
           label: Text(connecting ? 'Connecting...' : 'Join with code'),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: connecting ? null : () => _scan(member),
-          icon: const Icon(Icons.qr_code_scanner),
-          label: const Text('Scan QR code'),
-        ),
+        if (!kIsWeb) ...<Widget>[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: connecting ? null : () => _scan(member),
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scan QR code'),
+          ),
+        ],
         if (member.statusMessage != null) ...<Widget>[
           const SizedBox(height: 20),
           Container(

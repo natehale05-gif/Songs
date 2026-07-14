@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -41,8 +42,11 @@ class QrPanel extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'On the same WiFi, open Songs → Join a session,\n'
-          'then scan this code or type the join code.',
+          kIsWeb
+              ? 'Web preview: open Songs in another browser tab,\n'
+                  'choose "Join a session" and enter this code.'
+              : 'On the same WiFi, open Songs → Join a session,\n'
+                  'then scan this code or type the join code.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
