@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Songs uses the camera to scan a leader's join QR code.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Songs connects to your small group leader on the local network so you can follow along, even without internet.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
