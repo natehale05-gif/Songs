@@ -29,6 +29,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   String _mode = 'scroll';
   int _tapIdx = 0;
+  int _tapDir = 1;
   double _fontSize = 1.35;
   bool _keyPlaying = false;
   bool _liveInit = false;
@@ -377,38 +378,68 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
     final idx = _tapIdx.clamp(0, parts.length - 1);
     final cur = parts[idx];
-    return Column(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v < -120) {
+          _goNext();
+        } else if (v > 120) {
+          _goPrev();
+        }
+      },
+      child: Column(
       children: [
         Expanded(
           child: Stack(
             children: [
               Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        cur.isChorus ? 'CHORUS' : cur.label.toUpperCase(),
-                        style: TextStyle(
-                          color: cur.isChorus ? p.green : p.text3,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.4,
-                        ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final incoming = child.key == ValueKey<int>(idx);
+                    final begin = incoming
+                        ? Offset(_tapDir * 0.25, 0)
+                        : Offset(_tapDir * -0.25, 0);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(begin: begin, end: Offset.zero)
+                            .animate(animation),
+                        child: child,
                       ),
-                      const SizedBox(height: 18),
-                      Text(
-                        cur.text,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: kDisplaySerif,
-                          color: p.text,
-                          fontSize: _fontPx,
-                          height: 1.5,
+                    );
+                  },
+                  child: SingleChildScrollView(
+                    key: ValueKey<int>(idx),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          cur.isChorus ? 'CHORUS' : cur.label.toUpperCase(),
+                          style: TextStyle(
+                            color: cur.isChorus ? p.green : p.text3,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.4,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        Text(
+                          cur.text,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: kDisplaySerif,
+                            color: p.text,
+                            fontSize: _fontPx,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -444,6 +475,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         ),
         _buildTapDots(p, parts, idx),
       ],
+      ),
     );
   }
 
@@ -456,7 +488,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
           for (var i = 0; i < parts.length; i++)
             GestureDetector(
               onTap: () {
-                setState(() => _tapIdx = i);
+                setState(() {
+                  _tapDir = i >= _tapIdx ? 1 : -1;
+                  _tapIdx = i;
+                });
                 _publishLive();
               },
               child: AnimatedContainer(
@@ -480,14 +515,20 @@ class _ReaderScreenState extends State<ReaderScreen> {
   void _goNext() {
     final parts = _activeParts;
     if (_tapIdx < parts.length - 1) {
-      setState(() => _tapIdx++);
+      setState(() {
+        _tapDir = 1;
+        _tapIdx++;
+      });
       _publishLive();
     }
   }
 
   void _goPrev() {
     if (_tapIdx > 0) {
-      setState(() => _tapIdx--);
+      setState(() {
+        _tapDir = -1;
+        _tapIdx--;
+      });
       _publishLive();
     }
   }
