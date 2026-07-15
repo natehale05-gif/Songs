@@ -3,14 +3,18 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'app_state.dart';
+import 'live/live_controller.dart';
 import 'screens/library_screen.dart';
 import 'theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppState()..init(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppState()..init()),
+        ChangeNotifierProvider(create: (_) => LiveSessionController()),
+      ],
       child: const SongsApp(),
     ),
   );
