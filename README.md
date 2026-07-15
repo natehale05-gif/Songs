@@ -20,7 +20,33 @@ from a single codebase.
 - **Set lists** — build one manually or generate a random set, then run a
   full-screen **presentation mode** that flows title cards and verses across
   the whole set with tap navigation.
+- **Small group (live sessions)** — tap the circular button in the bottom-left
+  to open a bottom sheet where you can **lead** a group or **join** one by code
+  or QR. The leader hosts the session and, as they move through verses in the
+  reader or set-list presenter, every member's screen mirrors the current verse
+  in real time. Works **offline** — see below.
 - **Theming** — iOS-style light/dark palettes, persisted between launches.
+
+## Small group / live sessions
+
+Tap the round button at the bottom-left of the library to open the small-group
+sheet.
+
+- **Lead a group:** a short join code (and QR) is generated. Members join, and
+  whatever verse/slide you are on in the reader or set-list presenter is pushed
+  to everyone. You can blank all screens from the sheet.
+- **Join a group:** enter the leader's code (or scan the QR on mobile) to open a
+  full-screen live view that follows the leader.
+
+How it works per platform:
+
+- **Native (Android/iOS/desktop):** the leader hosts a WebSocket server on the
+  local network and answers UDP-broadcast discovery probes, so members can join
+  by code with no internet — just the same WiFi or a hotspot.
+- **Web:** browsers cannot host a server, so the web build syncs via a
+  same-origin `BroadcastChannel`. This lets you try the flow across **two tabs
+  of the same browser** (handy on GitHub Pages), but is not a cross-device
+  transport.
 
 ## Project layout
 
@@ -32,7 +58,13 @@ lib/audio.dart                Tone / pitch-pipe synthesis
 lib/theme.dart                Color tokens & category colors
 lib/widgets/                  Music staff painter, pitch-pipe sheet
 lib/screens/                  Library, reader, author, set-list presentation
+lib/live/                     Live small-group feature (transport, controller, UI)
 ```
+
+The `lib/live/` module is self-contained: pure-Dart models (`live_snapshot`,
+`frame`, `join_code`, `connection_info`), a platform-selected transport
+(`host`/`client` with `_io` LAN and `_web` BroadcastChannel implementations),
+a `LiveSessionController`, and the sheet / member view UI.
 
 ## Running
 
@@ -54,8 +86,11 @@ flutter test
 
 ## Notes
 
-The original site's networked "group session" live-sync (an Ably-backed feature
-where a host broadcasts the current verse to a congregation) and its
-crowd-sourced Popular voting rely on an external realtime service and API key,
-so they are not reproduced here. Popular is computed locally from how often you
-open each song, and presentation mode runs entirely on-device.
+The original site's networked "group session" live-sync is reimplemented here as
+the offline **small group** feature described above — but without any external
+service or API key. Instead of a cloud realtime backend, the leader hosts
+directly on the local network (native) or over a same-browser channel (web), so
+it works offline.
+
+Crowd-sourced Popular voting still relied on an external service, so **Popular**
+is computed locally from how often you open each song.
