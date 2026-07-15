@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../audio.dart';
+import '../live/live_controller.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../ui_kit.dart';
 import '../widgets/music_staff.dart';
 import '../widgets/pitch_pipe.dart';
 import 'author_screen.dart';
@@ -28,13 +30,56 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   String _mode = 'scroll';
   int _tapIdx = 0;
+  int _tapDir = 1;
   double _fontSize = 1.35;
   bool _keyPlaying = false;
+  bool _liveInit = false;
 
   @override
   void initState() {
     super.initState();
     _loadSong(widget.song);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_liveInit) {
+      _liveInit = true;
+      // When hosting a live session, present verse-by-verse and mirror it.
+      if (context.read<LiveSessionController>().isLeader) {
+        _mode = 'tap';
+        WidgetsBinding.instance.addPostFrameCallback((_) => _publishLive());
+      }
+    }
+  }
+
+  /// Broadcasts the currently displayed part to group members (leader only).
+  void _publishLive() {
+    final live = context.read<LiveSessionController>();
+    if (!live.isLeader) return;
+    final parts = _activeParts;
+    if (parts.isEmpty) {
+      live.publish(
+        songId: _song.id,
+        songTitle: _song.title,
+        songSubtitle: _song.author,
+        total: 0,
+      );
+      return;
+    }
+    final idx = _tapIdx.clamp(0, parts.length - 1);
+    final part = parts[idx];
+    live.publish(
+      songId: _song.id,
+      songTitle: _song.title,
+      songSubtitle: _song.author,
+      partLabel: part.label,
+      partText: part.text,
+      isChorus: part.isChorus,
+      index: idx,
+      total: parts.length,
+    );
   }
 
   void _loadSong(Song song) {
@@ -83,12 +128,43 @@ class _ReaderScreenState extends State<ReaderScreen> {
         child: Column(
           children: [
             _buildHeader(state, p),
+            if (context.watch<LiveSessionController>().isLeader) _liveBanner(p),
             Expanded(
               child: _mode == 'scroll' ? _buildScrollMode(p) : _buildTapMode(p),
             ),
             _buildBottomControls(p),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _liveBanner(ReaderPalette p) {
+    final live = context.watch<LiveSessionController>();
+    final count = live.memberCount;
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFF3B30).withValues(alpha: 0.12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      child: Row(
+        children: [
+          const Icon(Icons.podcasts, size: 15, color: Color(0xFFFF3B30)),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              _mode == 'scroll'
+                  ? 'Leading live — switch to Tap to send each verse'
+                  : 'Leading live — members follow the highlighted verse',
+              style: const TextStyle(
+                  color: Color(0xFFFF3B30),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          Text('$count ${count == 1 ? 'member' : 'members'}',
+              style: TextStyle(
+                  color: p.text3, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -154,7 +230,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           const SizedBox(width: 6),
           IconButton(
-            onPressed: () => state.toggleFavorite(_song.id),
+            onPressed: () {
+              Haptics.light();
+              state.toggleFavorite(_song.id);
+            },
             icon: Icon(isFav ? Icons.favorite : Icons.favorite_border,
                 size: 20, color: isFav ? const Color(0xFFFF3B30) : p.text3),
           ),
@@ -203,15 +282,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _openAuthor(AppState state, Author author) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AuthorScreen(
+      appPage(
+        (_) => AuthorScreen(
           author: author,
           book: state.book,
           palette: _p,
           onSelectSong: (s) {
             state.trackOpen(s.id);
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => ReaderScreen(song: s, queue: widget.queue)),
+              appPage((_) => ReaderScreen(song: s, queue: widget.queue)),
             );
           },
         ),
@@ -303,38 +382,68 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
     final idx = _tapIdx.clamp(0, parts.length - 1);
     final cur = parts[idx];
-    return Column(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v < -120) {
+          _goNext();
+        } else if (v > 120) {
+          _goPrev();
+        }
+      },
+      child: Column(
       children: [
         Expanded(
           child: Stack(
             children: [
               Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        cur.isChorus ? 'CHORUS' : cur.label.toUpperCase(),
-                        style: TextStyle(
-                          color: cur.isChorus ? p.green : p.text3,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.4,
-                        ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final incoming = child.key == ValueKey<int>(idx);
+                    final begin = incoming
+                        ? Offset(_tapDir * 0.25, 0)
+                        : Offset(_tapDir * -0.25, 0);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(begin: begin, end: Offset.zero)
+                            .animate(animation),
+                        child: child,
                       ),
-                      const SizedBox(height: 18),
-                      Text(
-                        cur.text,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: kDisplaySerif,
-                          color: p.text,
-                          fontSize: _fontPx,
-                          height: 1.5,
+                    );
+                  },
+                  child: SingleChildScrollView(
+                    key: ValueKey<int>(idx),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          cur.isChorus ? 'CHORUS' : cur.label.toUpperCase(),
+                          style: TextStyle(
+                            color: cur.isChorus ? p.green : p.text3,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.4,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        Text(
+                          cur.text,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: kDisplaySerif,
+                            color: p.text,
+                            fontSize: _fontPx,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -370,6 +479,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         ),
         _buildTapDots(p, parts, idx),
       ],
+      ),
     );
   }
 
@@ -381,7 +491,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
         children: [
           for (var i = 0; i < parts.length; i++)
             GestureDetector(
-              onTap: () => setState(() => _tapIdx = i),
+              onTap: () {
+                Haptics.selection();
+                setState(() {
+                  _tapDir = i >= _tapIdx ? 1 : -1;
+                  _tapIdx = i;
+                });
+                _publishLive();
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -402,11 +519,25 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _goNext() {
     final parts = _activeParts;
-    if (_tapIdx < parts.length - 1) setState(() => _tapIdx++);
+    if (_tapIdx < parts.length - 1) {
+      Haptics.selection();
+      setState(() {
+        _tapDir = 1;
+        _tapIdx++;
+      });
+      _publishLive();
+    }
   }
 
   void _goPrev() {
-    if (_tapIdx > 0) setState(() => _tapIdx--);
+    if (_tapIdx > 0) {
+      Haptics.selection();
+      setState(() {
+        _tapDir = -1;
+        _tapIdx--;
+      });
+      _publishLive();
+    }
   }
 
   Widget _buildBottomControls(ReaderPalette p) {
@@ -429,6 +560,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               _mode = _mode == 'scroll' ? 'tap' : 'scroll';
               _tapIdx = 0;
             });
+            _publishLive();
           }),
           const SizedBox(width: 8),
           _pillButton(p, 'Pitch', _showPitchPipe),
@@ -438,7 +570,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Widget _fontButton(ReaderPalette p, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         width: 42, height: 38,
@@ -450,7 +582,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Widget _pillButton(ReaderPalette p, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         height: 38,
@@ -488,6 +620,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 _tapIdx = 0;
               });
               setSheet(() {});
+              _publishLive();
             }
 
             return Padding(
@@ -616,7 +749,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Widget _pickerAction(ReaderPalette p, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),

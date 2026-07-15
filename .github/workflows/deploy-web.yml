@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main
-      - cursor/rebuild-songs-flutter-app-d7d3
+      # Allow previewing the small-group feature branch before it is merged.
+      - cursor/small-group-in-real-app-59da
   workflow_dispatch:
 
 permissions:
@@ -28,6 +29,12 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.44.6
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Install dependencies
         run: flutter pub get

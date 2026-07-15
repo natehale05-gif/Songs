@@ -1,16 +1,22 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'app_state.dart';
+import 'live/live_controller.dart';
 import 'screens/library_screen.dart';
 import 'theme.dart';
+import 'ui_kit.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppState()..init(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppState()..init()),
+        ChangeNotifierProvider(create: (_) => LiveSessionController()),
+      ],
       child: const SongsApp(),
     ),
   );
@@ -28,6 +34,7 @@ class SongsApp extends StatelessWidget {
     return MaterialApp(
       title: 'Songs of the Church',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const AppScrollBehavior(),
       theme: _buildTheme(palette),
       home: const _Root(),
     );
@@ -43,6 +50,7 @@ class SongsApp extends StatelessWidget {
         surface: p.surface,
         brightness: p.brightness,
       ),
+      pageTransitionsTheme: kAppPageTransitions,
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
       textTheme: base.textTheme.apply(
@@ -69,10 +77,8 @@ class _Root extends StatelessWidget {
     if (!state.isLoaded) {
       return Scaffold(
         backgroundColor: isDark ? AppPalette.dark.bg : AppPalette.light.bg,
-        body: Center(
-          child: CircularProgressIndicator(
-            color: isDark ? AppPalette.dark.navy : AppPalette.light.navy,
-          ),
+        body: const Center(
+          child: CupertinoActivityIndicator(radius: 14),
         ),
       );
     }
