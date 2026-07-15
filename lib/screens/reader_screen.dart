@@ -6,6 +6,7 @@ import '../audio.dart';
 import '../live/live_controller.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../ui_kit.dart';
 import '../widgets/music_staff.dart';
 import '../widgets/pitch_pipe.dart';
 import 'author_screen.dart';
@@ -229,7 +230,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           const SizedBox(width: 6),
           IconButton(
-            onPressed: () => state.toggleFavorite(_song.id),
+            onPressed: () {
+              Haptics.light();
+              state.toggleFavorite(_song.id);
+            },
             icon: Icon(isFav ? Icons.favorite : Icons.favorite_border,
                 size: 20, color: isFav ? const Color(0xFFFF3B30) : p.text3),
           ),
@@ -278,15 +282,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _openAuthor(AppState state, Author author) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AuthorScreen(
+      appPage(
+        (_) => AuthorScreen(
           author: author,
           book: state.book,
           palette: _p,
           onSelectSong: (s) {
             state.trackOpen(s.id);
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => ReaderScreen(song: s, queue: widget.queue)),
+              appPage((_) => ReaderScreen(song: s, queue: widget.queue)),
             );
           },
         ),
@@ -488,6 +492,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           for (var i = 0; i < parts.length; i++)
             GestureDetector(
               onTap: () {
+                Haptics.selection();
                 setState(() {
                   _tapDir = i >= _tapIdx ? 1 : -1;
                   _tapIdx = i;
@@ -515,6 +520,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   void _goNext() {
     final parts = _activeParts;
     if (_tapIdx < parts.length - 1) {
+      Haptics.selection();
       setState(() {
         _tapDir = 1;
         _tapIdx++;
@@ -525,6 +531,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _goPrev() {
     if (_tapIdx > 0) {
+      Haptics.selection();
       setState(() {
         _tapDir = -1;
         _tapIdx--;
@@ -563,7 +570,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Widget _fontButton(ReaderPalette p, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         width: 42, height: 38,
@@ -575,7 +582,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Widget _pillButton(ReaderPalette p, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         height: 38,
@@ -742,7 +749,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Widget _pickerAction(ReaderPalette p, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),

@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
+import '../ui_kit.dart';
 import 'connection_info.dart';
 import 'live_controller.dart';
 import 'member_live_screen.dart';
@@ -58,7 +59,7 @@ class _LiveSheetState extends State<_LiveSheet> {
   void _openMemberView() {
     Navigator.of(context).pop();
     widget.pageNavigator.push(
-      MaterialPageRoute<void>(builder: (_) => const MemberLiveScreen()),
+      appPage<void>((_) => const MemberLiveScreen()),
     );
   }
 
@@ -139,7 +140,7 @@ class _LiveSheetState extends State<_LiveSheet> {
       children: [
         Row(
           children: [
-            GestureDetector(
+            Pressable(
               onTap: () => setState(() => _mode = _Mode.home),
               child: Icon(Icons.chevron_left, color: p.accent, size: 26),
             ),
@@ -169,7 +170,7 @@ class _LiveSheetState extends State<_LiveSheet> {
 
   Future<void> _scan(LiveSessionController live) async {
     final ConnectionInfo? info = await widget.pageNavigator.push<ConnectionInfo>(
-      MaterialPageRoute<ConnectionInfo>(builder: (_) => const ScanScreen()),
+      appPage<ConnectionInfo>((_) => const ScanScreen()),
     );
     if (info != null) {
       live.joinByConnection(info, memberName: _memberName);
@@ -306,7 +307,12 @@ class _LiveSheetState extends State<_LiveSheet> {
     return SizedBox(
       height: 52,
       child: ElevatedButton.icon(
-        onPressed: onTap,
+        onPressed: onTap == null
+            ? null
+            : () {
+                Haptics.light();
+                onTap();
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: p.navy,
           foregroundColor: Colors.white,
@@ -327,7 +333,12 @@ class _LiveSheetState extends State<_LiveSheet> {
     return SizedBox(
       height: 52,
       child: TextButton.icon(
-        onPressed: onTap,
+        onPressed: onTap == null
+            ? null
+            : () {
+                Haptics.light();
+                onTap();
+              },
         style: TextButton.styleFrom(
           backgroundColor: p.fill1,
           foregroundColor: p.label,
@@ -345,7 +356,12 @@ class _LiveSheetState extends State<_LiveSheet> {
     return SizedBox(
       height: 50,
       child: TextButton(
-        onPressed: onTap,
+        onPressed: onTap == null
+            ? null
+            : () {
+                Haptics.medium();
+                onTap();
+              },
         style: TextButton.styleFrom(
           foregroundColor: const Color(0xFFFF3B30),
         ),

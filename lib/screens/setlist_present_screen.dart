@@ -6,6 +6,7 @@ import '../app_state.dart';
 import '../live/live_controller.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../ui_kit.dart';
 
 class _Slide {
   final Song song;
@@ -285,7 +286,7 @@ class _SetListPresentScreenState extends State<SetListPresentScreen> {
   }
 
   Widget _fontButton(ReaderPalette p, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         width: 42, height: 38,
@@ -298,13 +299,15 @@ class _SetListPresentScreenState extends State<SetListPresentScreen> {
 
   void _next() {
     if (_idx < _slides.length - 1) {
-      _controller.nextPage(duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+      Haptics.selection();
+      _controller.nextPage(duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
     }
   }
 
   void _prev() {
     if (_idx > 0) {
-      _controller.previousPage(duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+      Haptics.selection();
+      _controller.previousPage(duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
     }
   }
 

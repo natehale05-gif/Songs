@@ -37,7 +37,27 @@ class MemberLiveScreen extends StatelessWidget {
           child: Column(
             children: [
               _header(context, p, live, snap),
-              Expanded(child: _body(context, p, live, snap)),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.05),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: KeyedSubtree(
+                    key: ValueKey<String>(_contentKey(live, snap)),
+                    child: _body(context, p, live, snap),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -99,6 +119,15 @@ class MemberLiveScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// A stable identity for the currently shown content so the AnimatedSwitcher
+  /// only animates when the leader actually moves to something new.
+  String _contentKey(LiveSessionController live, LiveSnapshot? snap) {
+    if (snap == null) return 'status:${live.memberStatus}';
+    if (snap.blanked) return 'blanked';
+    if (!snap.hasSong) return 'waiting';
+    return 'slide:${snap.songId}:${snap.isTitle ? 't' : snap.partLabel}';
   }
 
   Widget _body(BuildContext context, ReaderPalette p,

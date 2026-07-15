@@ -8,6 +8,7 @@ import '../live/live_controller.dart';
 import '../live/live_sheet.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../ui_kit.dart';
 import 'reader_screen.dart';
 import 'setlist_present_screen.dart';
 
@@ -100,12 +101,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _openSong(Song song) {
+    Haptics.light();
     final state = context.read<AppState>();
     state.trackOpen(song.id);
     final songs = _filtered(state);
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ReaderScreen(song: song, queue: songs),
+      appPage(
+        (_) => ReaderScreen(song: song, queue: songs),
       ),
     );
   }
@@ -157,7 +159,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           : FloatingActionButton.extended(
               backgroundColor: p.navy,
               foregroundColor: Colors.white,
-              onPressed: () => setState(() => _setListMode = true),
+              onPressed: () {
+                Haptics.light();
+                setState(() => _setListMode = true);
+              },
               icon: const Icon(Icons.queue_music, size: 20),
               label: const Text('Set List',
                   style: TextStyle(fontWeight: FontWeight.w700)),
@@ -175,14 +180,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Material(
-                color: active ? const Color(0xFFFF3B30) : p.navy,
-                shape: const CircleBorder(),
-                elevation: 4,
-                shadowColor: Colors.black45,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => showLiveSheet(context),
+              Pressable(
+                onTap: () => showLiveSheet(context),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: active ? const Color(0xFFFF3B30) : p.navy,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (active ? const Color(0xFFFF3B30) : p.navy)
+                            .withValues(alpha: 0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
                   child: Center(
                     child: Icon(
                       active ? Icons.podcasts : Icons.groups_outlined,
@@ -255,7 +271,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  onPressed: state.toggleTheme,
+                  onPressed: () {
+                    Haptics.light();
+                    state.toggleTheme();
+                  },
                   icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
                       size: 20, color: p.label2),
                   style: IconButton.styleFrom(
@@ -304,7 +323,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
           ),
           if (_search.isNotEmpty)
-            GestureDetector(
+            Pressable(
               onTap: () {
                 _searchController.clear();
                 setState(() => _search = '');
@@ -336,11 +355,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
         itemBuilder: (context, i) {
           final f = filters[i];
           final active = _filterKey == f.key;
-          return GestureDetector(
-            onTap: () => setState(() {
-              _filterKey = (active && f.isLang) ? 'all' : f.key;
-            }),
-            child: Container(
+          return Pressable(
+            onTap: () {
+              Haptics.selection();
+              setState(() {
+                _filterKey = (active && f.isLang) ? 'all' : f.key;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               alignment: Alignment.center,
               decoration: BoxDecoration(
@@ -415,7 +439,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _barButton(AppPalette p, String label,
       {required bool secondary, IconData? icon, required VoidCallback onTap}) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -443,8 +467,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void _beginSetList(AppState state) {
     if (state.setList.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => SetListPresentScreen(songs: state.setList),
+      appPage(
+        (_) => SetListPresentScreen(songs: state.setList),
       ),
     );
   }
@@ -490,6 +514,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       child: InkWell(
         onTap: () {
           if (_setListMode) {
+            Haptics.selection();
             state.toggleSetListSong(song);
           } else {
             _openSong(song);
@@ -568,9 +593,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
               else
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => state.toggleFavorite(song.id),
-                      behavior: HitTestBehavior.opaque,
+                    Pressable(
+                      onTap: () {
+                        Haptics.light();
+                        state.toggleFavorite(song.id);
+                      },
                       child: Padding(
                         padding: const EdgeInsets.all(4),
                         child: Icon(
@@ -687,9 +714,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
 
   Widget _chip(AppPalette p, String label, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    return Pressable(
+      onTap: () {
+        Haptics.selection();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
         decoration: BoxDecoration(
           color: active ? p.navy : p.fill1,

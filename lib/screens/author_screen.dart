@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../theme.dart';
+import '../ui_kit.dart';
 
 class AuthorScreen extends StatelessWidget {
   final Author author;
@@ -116,7 +117,7 @@ class AuthorScreen extends StatelessWidget {
       );
 
   Widget _songRow(BuildContext context, ReaderPalette p, Song s) {
-    return InkWell(
+    return Pressable(
       onTap: () {
         Navigator.of(context).pop();
         onSelectSong(s);
