@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../live/live_controller.dart';
+import '../live/live_sheet.dart';
 import '../models.dart';
 import '../theme.dart';
 import 'reader_screen.dart';
@@ -119,25 +121,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     return Scaffold(
       backgroundColor: p.bg,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeader(state, p),
-          if (_setListMode) _buildSetListBar(state, p),
-          Expanded(
-            child: filtered.isEmpty
-                ? _buildEmpty(p)
-                : ListView(
-                    padding: EdgeInsets.only(bottom: _setListMode ? 8 : 88),
-                    children: [
-                      if (isPopular)
-                        ...filtered.map((s) => _buildSongItem(state, p, s))
-                      else
-                        for (final letter in letters) ...[
-                          _buildSectionHeader(p, letter),
-                          ...grouped[letter]!.map((s) => _buildSongItem(state, p, s)),
+          Column(
+            children: [
+              _buildHeader(state, p),
+              if (_setListMode) _buildSetListBar(state, p),
+              Expanded(
+                child: filtered.isEmpty
+                    ? _buildEmpty(p)
+                    : ListView(
+                        padding: EdgeInsets.only(bottom: _setListMode ? 8 : 96),
+                        children: [
+                          if (isPopular)
+                            ...filtered.map((s) => _buildSongItem(state, p, s))
+                          else
+                            for (final letter in letters) ...[
+                              _buildSectionHeader(p, letter),
+                              ...grouped[letter]!.map((s) => _buildSongItem(state, p, s)),
+                            ],
                         ],
-                    ],
-                  ),
+                      ),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 20,
+            bottom: 24 + MediaQuery.of(context).padding.bottom,
+            child: _buildLiveButton(p),
           ),
         ],
       ),
@@ -151,6 +162,62 @@ class _LibraryScreenState extends State<LibraryScreen> {
               label: const Text('Set List',
                   style: TextStyle(fontWeight: FontWeight.w700)),
             ),
+    );
+  }
+
+  Widget _buildLiveButton(AppPalette p) {
+    return Consumer<LiveSessionController>(
+      builder: (context, live, _) {
+        final active = live.isActive;
+        return SizedBox(
+          width: 58,
+          height: 58,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Material(
+                color: active ? const Color(0xFFFF3B30) : p.navy,
+                shape: const CircleBorder(),
+                elevation: 4,
+                shadowColor: Colors.black45,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => showLiveSheet(context),
+                  child: Center(
+                    child: Icon(
+                      active ? Icons.podcasts : Icons.groups_outlined,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                ),
+              ),
+              if (active && live.isLeader && live.memberCount > 0)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: p.navy,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: p.bg, width: 2),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                    child: Text(
+                      '${live.memberCount}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
