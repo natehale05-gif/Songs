@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models.dart';
@@ -8,12 +8,12 @@ import 'models.dart';
 enum AppThemeMode { light, dark }
 
 /// Central application state: loaded song data, favorites, "popular" tracking
-/// (locally derived from how often each song is opened), the working set list,
-/// and the light/dark theme preference. Persisted via [SharedPreferences].
-class AppState extends ChangeNotifier {
+/// (locally derived from how often each song is opened) and the working set
+/// list. Persisted via [SharedPreferences]. Light/dark appearance follows the
+/// device's system setting automatically.
+class AppState extends ChangeNotifier with WidgetsBindingObserver {
   static const _kFavorites = 'songbook-favorites';
   static const _kOpens = 'songbook-open-counts';
-  static const _kTheme = 'songbook-theme';
 
   SongBook? _book;
   SongBook get book => _book!;
@@ -23,7 +23,11 @@ class AppState extends ChangeNotifier {
 
   final Set<int> _favorites = {};
   final Map<int, int> _openCounts = {};
-  AppThemeMode _theme = AppThemeMode.dark;
+  AppThemeMode _theme = _modeFor(
+      WidgetsBinding.instance.platformDispatcher.platformBrightness);
+
+  static AppThemeMode _modeFor(Brightness b) =>
+      b == Brightness.dark ? AppThemeMode.dark : AppThemeMode.light;
 
   /// Songs queued for the current set-list build.
   final List<Song> _setList = [];
@@ -33,10 +37,29 @@ class AppState extends ChangeNotifier {
   List<Song> get setList => List.unmodifiable(_setList);
 
   Future<void> init() async {
+    WidgetsBinding.instance.addObserver(this);
+    _theme = _modeFor(
+        WidgetsBinding.instance.platformDispatcher.platformBrightness);
     _book = await SongBook.load();
     _prefs = await SharedPreferences.getInstance();
     _loadPrefs();
     notifyListeners();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    final mode = _modeFor(
+        WidgetsBinding.instance.platformDispatcher.platformBrightness);
+    if (mode != _theme) {
+      _theme = mode;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void _loadPrefs() {
@@ -60,9 +83,6 @@ class AppState extends ChangeNotifier {
         });
       } catch (_) {}
     }
-
-    final themeRaw = prefs.getString(_kTheme);
-    _theme = themeRaw == 'light' ? AppThemeMode.light : AppThemeMode.dark;
   }
 
   bool isFavorite(int id) => _favorites.contains(id);
@@ -70,12 +90,6 @@ class AppState extends ChangeNotifier {
   void toggleFavorite(int id) {
     if (!_favorites.remove(id)) _favorites.add(id);
     _prefs?.setString(_kFavorites, json.encode(_favorites.toList()));
-    notifyListeners();
-  }
-
-  void toggleTheme() {
-    _theme = _theme == AppThemeMode.dark ? AppThemeMode.light : AppThemeMode.dark;
-    _prefs?.setString(_kTheme, _theme == AppThemeMode.light ? 'light' : 'dark');
     notifyListeners();
   }
 
