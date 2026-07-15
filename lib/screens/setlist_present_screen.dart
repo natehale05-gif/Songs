@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../live/live_controller.dart';
 import '../models.dart';
 import '../theme.dart';
 
@@ -33,10 +34,40 @@ class _SetListPresentScreenState extends State<SetListPresentScreen> {
   int _idx = 0;
   double _fontSize = 1.7;
 
+  bool _liveInit = false;
+
   @override
   void initState() {
     super.initState();
     _slides = _buildSlides();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_liveInit) {
+      _liveInit = true;
+      if (context.read<LiveSessionController>().isLeader) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _publishLive());
+      }
+    }
+  }
+
+  void _publishLive() {
+    final live = context.read<LiveSessionController>();
+    if (!live.isLeader) return;
+    final slide = _slides[_idx.clamp(0, _slides.length - 1)];
+    live.publish(
+      songId: slide.song.id,
+      songTitle: slide.song.title,
+      songSubtitle: slide.song.key != null ? 'Key of ${slide.song.key}' : '',
+      partLabel: slide.isTitle ? '' : (slide.part?.label ?? ''),
+      partText: slide.isTitle ? '' : (slide.part?.text ?? ''),
+      isChorus: slide.part?.isChorus ?? false,
+      isTitle: slide.isTitle,
+      index: _idx,
+      total: _slides.length,
+    );
   }
 
   List<_Slide> _buildSlides() {
@@ -77,7 +108,10 @@ class _SetListPresentScreenState extends State<SetListPresentScreen> {
                   PageView.builder(
                     controller: _controller,
                     itemCount: _slides.length,
-                    onPageChanged: (i) => setState(() => _idx = i),
+                    onPageChanged: (i) {
+                      setState(() => _idx = i);
+                      _publishLive();
+                    },
                     itemBuilder: (_, i) => _buildSlide(p, _slides[i]),
                   ),
                   // Tap navigation zones (do not block horizontal swipes).

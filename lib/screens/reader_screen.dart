@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../audio.dart';
+import '../live/live_controller.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets/music_staff.dart';
@@ -30,11 +31,53 @@ class _ReaderScreenState extends State<ReaderScreen> {
   int _tapIdx = 0;
   double _fontSize = 1.35;
   bool _keyPlaying = false;
+  bool _liveInit = false;
 
   @override
   void initState() {
     super.initState();
     _loadSong(widget.song);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_liveInit) {
+      _liveInit = true;
+      // When hosting a live session, present verse-by-verse and mirror it.
+      if (context.read<LiveSessionController>().isLeader) {
+        _mode = 'tap';
+        WidgetsBinding.instance.addPostFrameCallback((_) => _publishLive());
+      }
+    }
+  }
+
+  /// Broadcasts the currently displayed part to group members (leader only).
+  void _publishLive() {
+    final live = context.read<LiveSessionController>();
+    if (!live.isLeader) return;
+    final parts = _activeParts;
+    if (parts.isEmpty) {
+      live.publish(
+        songId: _song.id,
+        songTitle: _song.title,
+        songSubtitle: _song.author,
+        total: 0,
+      );
+      return;
+    }
+    final idx = _tapIdx.clamp(0, parts.length - 1);
+    final part = parts[idx];
+    live.publish(
+      songId: _song.id,
+      songTitle: _song.title,
+      songSubtitle: _song.author,
+      partLabel: part.label,
+      partText: part.text,
+      isChorus: part.isChorus,
+      index: idx,
+      total: parts.length,
+    );
   }
 
   void _loadSong(Song song) {
@@ -83,12 +126,43 @@ class _ReaderScreenState extends State<ReaderScreen> {
         child: Column(
           children: [
             _buildHeader(state, p),
+            if (context.watch<LiveSessionController>().isLeader) _liveBanner(p),
             Expanded(
               child: _mode == 'scroll' ? _buildScrollMode(p) : _buildTapMode(p),
             ),
             _buildBottomControls(p),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _liveBanner(ReaderPalette p) {
+    final live = context.watch<LiveSessionController>();
+    final count = live.memberCount;
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFF3B30).withValues(alpha: 0.12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      child: Row(
+        children: [
+          const Icon(Icons.podcasts, size: 15, color: Color(0xFFFF3B30)),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              _mode == 'scroll'
+                  ? 'Leading live — switch to Tap to send each verse'
+                  : 'Leading live — members follow the highlighted verse',
+              style: const TextStyle(
+                  color: Color(0xFFFF3B30),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          Text('$count ${count == 1 ? 'member' : 'members'}',
+              style: TextStyle(
+                  color: p.text3, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -381,7 +455,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
         children: [
           for (var i = 0; i < parts.length; i++)
             GestureDetector(
-              onTap: () => setState(() => _tapIdx = i),
+              onTap: () {
+                setState(() => _tapIdx = i);
+                _publishLive();
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -402,11 +479,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _goNext() {
     final parts = _activeParts;
-    if (_tapIdx < parts.length - 1) setState(() => _tapIdx++);
+    if (_tapIdx < parts.length - 1) {
+      setState(() => _tapIdx++);
+      _publishLive();
+    }
   }
 
   void _goPrev() {
-    if (_tapIdx > 0) setState(() => _tapIdx--);
+    if (_tapIdx > 0) {
+      setState(() => _tapIdx--);
+      _publishLive();
+    }
   }
 
   Widget _buildBottomControls(ReaderPalette p) {
@@ -429,6 +512,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               _mode = _mode == 'scroll' ? 'tap' : 'scroll';
               _tapIdx = 0;
             });
+            _publishLive();
           }),
           const SizedBox(width: 8),
           _pillButton(p, 'Pitch', _showPitchPipe),
@@ -488,6 +572,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 _tapIdx = 0;
               });
               setSheet(() {});
+              _publishLive();
             }
 
             return Padding(
