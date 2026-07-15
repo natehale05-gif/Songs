@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -120,36 +121,57 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final isPopular = _filterKey == 'popular';
     final grouped = _grouped(filtered);
     final letters = grouped.keys.toList()..sort();
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: p.bg,
       body: Stack(
         children: [
-          Column(
-            children: [
-              _buildHeader(state, p),
-              if (_setListMode) _buildSetListBar(state, p),
-              Expanded(
-                child: filtered.isEmpty
-                    ? _buildEmpty(p)
-                    : ListView(
-                        padding: EdgeInsets.only(bottom: _setListMode ? 8 : 96),
-                        children: [
-                          if (isPopular)
-                            ...filtered.map((s) => _buildSongItem(state, p, s))
-                          else
-                            for (final letter in letters) ...[
-                              _buildSectionHeader(p, letter),
-                              ...grouped[letter]!.map((s) => _buildSongItem(state, p, s)),
-                            ],
-                        ],
-                      ),
+          CustomScrollView(
+            slivers: [
+              _buildNavBar(state, p),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: PinnedBarDelegate(
+                  extent: 102,
+                  child: _searchFilterBar(state, p),
+                ),
+              ),
+              if (_setListMode)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: PinnedBarDelegate(
+                    extent: 52,
+                    child: _buildSetListBar(state, p),
+                  ),
+                ),
+              if (filtered.isEmpty)
+                SliverFillRemaining(hasScrollBody: false, child: _buildEmpty(p))
+              else if (isPopular)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _sectionCard(state, p, filtered),
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: 4),
+                    for (final letter in letters) ...[
+                      _buildSectionHeader(p, letter),
+                      _sectionCard(state, p, grouped[letter]!),
+                    ],
+                  ]),
+                ),
+              SliverToBoxAdapter(
+                child: SizedBox(height: (_setListMode ? 24 : 108) + bottomInset),
               ),
             ],
           ),
           Positioned(
             left: 20,
-            bottom: 24 + MediaQuery.of(context).padding.bottom,
+            bottom: 24 + bottomInset,
             child: _buildLiveButton(p),
           ),
         ],
@@ -167,6 +189,65 @@ class _LibraryScreenState extends State<LibraryScreen> {
               label: const Text('Set List',
                   style: TextStyle(fontWeight: FontWeight.w700)),
             ),
+    );
+  }
+
+  Widget _buildNavBar(AppState state, AppPalette p) {
+    final isDark = p.brightness == Brightness.dark;
+    return CupertinoSliverNavigationBar(
+      largeTitle: Text(
+        'Songs of the Church',
+        style: TextStyle(
+          fontFamily: kDisplaySerif,
+          fontWeight: FontWeight.w700,
+          color: p.label,
+          letterSpacing: -0.4,
+        ),
+      ),
+      automaticallyImplyLeading: false,
+      backgroundColor: p.surface.withValues(alpha: 0.72),
+      border: const Border(),
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${state.book.songs.length}',
+              style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: p.label3)),
+          const SizedBox(width: 10),
+          Pressable(
+            onTap: state.toggleTheme,
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: p.fill1, shape: BoxShape.circle),
+              child: Icon(
+                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                  size: 18,
+                  color: p.label2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _searchFilterBar(AppState state, AppPalette p) {
+    return FrostedBar(
+      color: p.surface.withValues(alpha: 0.72),
+      border: Border(bottom: BorderSide(color: p.separator, width: 0.5)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            child: _buildSearch(p),
+          ),
+          _buildFilterRow(state, p),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 
@@ -234,66 +315,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildHeader(AppState state, AppPalette p) {
-    final isDark = p.brightness == Brightness.dark;
-    return Container(
-      color: p.surface.withValues(alpha: 0.98),
-      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 12, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Songs of the Church',
-                    style: TextStyle(
-                      fontFamily: kDisplaySerif,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: p.label,
-                    ),
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('${state.book.songs.length}',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600, color: p.label)),
-                    Text('songs',
-                        style: TextStyle(fontSize: 11, color: p.label3)),
-                  ],
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () {
-                    Haptics.light();
-                    state.toggleTheme();
-                  },
-                  icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                      size: 20, color: p.label2),
-                  style: IconButton.styleFrom(
-                    backgroundColor: p.fill1,
-                    shape: const CircleBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-            child: _buildSearch(p),
-          ),
-          _buildFilterRow(state, p),
-          const SizedBox(height: 8),
-          Container(height: 0.5, color: p.separator),
-        ],
-      ),
     );
   }
 
@@ -407,9 +428,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _buildSetListBar(AppState state, AppPalette p) {
     final count = state.setList.length;
-    return Container(
-      color: p.surface,
-      padding: EdgeInsets.fromLTRB(16, 10, 16, 10),
+    return FrostedBar(
+      color: p.surface.withValues(alpha: 0.8),
+      border: Border(bottom: BorderSide(color: p.separator, width: 0.5)),
+      child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
         children: [
           Expanded(
@@ -433,6 +456,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             }),
           ],
         ],
+      ),
       ),
     );
   }
@@ -474,16 +498,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildSectionHeader(AppPalette p, String letter) {
-    return Container(
-      color: p.bg,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 16, 16, 7),
       child: Text(
-        letter,
+        letter.toUpperCase(),
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
           color: p.label3,
         ),
+      ),
+    );
+  }
+
+  /// A rounded, inset "group" of song rows — the grouped-list look from iOS
+  /// Settings and Contacts.
+  Widget _sectionCard(AppState state, AppPalette p, List<Song> songs) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < songs.length; i++)
+            _buildSongItem(state, p, songs[i], isLast: i == songs.length - 1),
+        ],
       ),
     );
   }
@@ -504,7 +547,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _buildSongItem(AppState state, AppPalette p, Song song) {
+  Widget _buildSongItem(AppState state, AppPalette p, Song song,
+      {bool isLast = false}) {
     final inSet = state.inSetList(song.id);
     final pos = state.setListPosition(song.id);
     final isFav = state.isFavorite(song.id);
@@ -523,7 +567,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: p.separator, width: 0.4)),
+            border: isLast
+                ? null
+                : Border(
+                    bottom: BorderSide(color: p.separator, width: 0.4),
+                  ),
           ),
           child: Row(
             children: [

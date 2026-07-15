@@ -22,34 +22,15 @@ class AuthorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = palette;
     final songs = book.songsByAuthor(author);
+    final topInset = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.chevron_left, color: p.accent, size: 26),
-                  ),
-                  Expanded(
-                    child: Text('Author',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: p.text, fontSize: 16, fontWeight: FontWeight.w600)),
-                  ),
-                  const SizedBox(width: 44),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
-                children: [
+      body: Stack(
+        children: [
+          ListView(
+            padding: EdgeInsets.fromLTRB(22, topInset + 60, 22, 40),
+            children: [
                   Text(author.name,
                       style: TextStyle(
                         fontFamily: kDisplaySerif,
@@ -97,11 +78,48 @@ class AuthorScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     ...songs.map((s) => _songRow(context, p, s)),
                   ],
-                ],
+            ],
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: FrostedBar(
+              color: p.surface.withValues(alpha: 0.7),
+              border: Border(bottom: BorderSide(color: p.sep, width: 0.5)),
+              child: Padding(
+                padding: EdgeInsets.only(top: topInset),
+                child: SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      Pressable(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Icon(Icons.chevron_left,
+                                color: p.accent, size: 28),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text('Author',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: p.text,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      const SizedBox(width: 44),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

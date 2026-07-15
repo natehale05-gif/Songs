@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -100,6 +102,60 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) =>
       const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+}
+
+/// A translucent, blurred bar — the frosted "glass" material Apple uses for
+/// navigation bars and toolbars. Whatever scrolls behind it shows through,
+/// softly blurred, exactly like iOS.
+class FrostedBar extends StatelessWidget {
+  const FrostedBar({
+    super.key,
+    required this.child,
+    required this.color,
+    this.border,
+    this.sigma = 22,
+  });
+
+  final Widget child;
+  final Color color;
+  final Border? border;
+  final double sigma;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: color, border: border),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// A fixed-height sliver that stays pinned to the top of a [CustomScrollView],
+/// used to keep a frosted toolbar in place while content scrolls beneath it.
+class PinnedBarDelegate extends SliverPersistentHeaderDelegate {
+  const PinnedBarDelegate({required this.extent, required this.child});
+
+  final double extent;
+  final Widget child;
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      SizedBox.expand(child: child);
+
+  @override
+  bool shouldRebuild(covariant PinnedBarDelegate oldDelegate) =>
+      oldDelegate.child != child || oldDelegate.extent != extent;
 }
 
 /// iOS-style page transitions applied across every platform for consistency.
