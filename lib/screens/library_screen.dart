@@ -194,24 +194,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _buildNavBar(AppState state, AppPalette p) {
     return CupertinoSliverNavigationBar(
-      largeTitle: Text(
-        'Songs of the Church',
-        style: TextStyle(
-          fontFamily: kDisplaySerif,
-          fontWeight: FontWeight.w700,
-          color: p.label,
-          letterSpacing: -0.4,
-        ),
+      largeTitle: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              'Songs of the Church',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: kDisplaySerif,
+                fontWeight: FontWeight.w700,
+                color: p.label,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${state.book.songs.length} songs',
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600, color: p.label3),
+          ),
+        ],
       ),
       automaticallyImplyLeading: false,
       backgroundColor: p.surface.withValues(alpha: 0.72),
       border: const Border(),
       padding: const EdgeInsetsDirectional.only(end: 16),
-      trailing: Text(
-        '${state.book.songs.length} songs',
-        style: TextStyle(
-            fontSize: 15, fontWeight: FontWeight.w600, color: p.label3),
-      ),
     );
   }
 
