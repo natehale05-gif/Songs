@@ -47,6 +47,7 @@ jobs:
           flutter build web --release --base-href /Songs/
           --build-number=${{ github.run_number }}
           --dart-define=APP_BUILD=${{ github.run_number }}
+          --dart-define=RELAY_URL=${{ vars.RELAY_URL }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

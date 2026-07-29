@@ -72,6 +72,7 @@ class LiveClientIo implements LiveClient {
       case FrameType.ping:
       case FrameType.leave:
       case FrameType.join:
+      case FrameType.members:
       case FrameType.unknown:
         break;
     }

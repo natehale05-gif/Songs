@@ -1,0 +1,9 @@
+# Render deployment for the Songs of the Church relay.
+services:
+  - type: web
+    name: songs-relay
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    plan: starter   # free/hobby tiers idle out, which drops live sessions

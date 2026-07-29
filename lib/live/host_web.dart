@@ -73,6 +73,7 @@ class LiveHostWeb implements LiveHost {
       case FrameType.joined:
       case FrameType.rejected:
       case FrameType.state:
+      case FrameType.members:
       case FrameType.unknown:
         break;
     }

@@ -1,5 +1,6 @@
 import 'connection_info.dart';
 import 'live_snapshot.dart';
+import 'relay_transport.dart';
 import 'client_web.dart' if (dart.library.io) 'client_io.dart';
 
 enum LiveClientStatus { idle, connecting, joined, rejected, disconnected, error }
@@ -8,6 +9,10 @@ enum LiveClientStatus { idle, connecting, joined, rejected, disconnected, error 
 /// WebSocket; web uses a same-browser BroadcastChannel.
 abstract class LiveClient {
   factory LiveClient() => createLiveClient();
+
+  /// Picks the transport for [mode].
+  factory LiveClient.forMode(LiveMode mode) =>
+      mode == LiveMode.online ? RelayClient() : createLiveClient();
 
   Stream<LiveSnapshot> get snapshots;
   Stream<LiveClientStatus> get statuses;

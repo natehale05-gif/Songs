@@ -124,15 +124,38 @@ sheet.
 - **Join a group:** enter the leader's code (or scan the QR on mobile) to open a
   full-screen live view that follows the leader.
 
-How it works per platform:
+### Same WiFi or Online
 
-- **Native (Android/iOS/desktop):** the leader hosts a WebSocket server on the
-  local network and answers UDP-broadcast discovery probes, so members can join
-  by code with no internet — just the same WiFi or a hotspot.
-- **Web:** browsers cannot host a server, so the web build syncs via a
-  same-origin `BroadcastChannel`. This lets you try the flow across **two tabs
-  of the same browser** (handy on GitHub Pages), but is not a cross-device
-  transport.
+The sheet offers two transports, and the leader's panel shows which one a
+running session is using.
+
+| | Reach | Needs internet |
+| --- | --- | --- |
+| **Same WiFi** | One local network or hotspot | No — fully offline |
+| **Online** | Cellular, any network, any distance | Yes, for everyone |
+
+**Same WiFi** is the original mode: the leader hosts a WebSocket server on the
+local network and answers UDP-broadcast discovery probes, so members join by
+code with no internet at all. On the web build, browsers cannot host a server,
+so this falls back to a same-origin `BroadcastChannel` — useful for trying the
+flow across two tabs, but not a cross-device transport.
+
+**Online** carries the session through a relay instead. Both the leader and the
+members dial *out* to it, which is what makes it work over cellular: phones sit
+behind carrier NAT, so there is no address to dial and no port to open, and a
+directly-hosted session cannot be reached. The relay matches them by join code
+and forwards the current verse. It works identically on web and native.
+
+Online needs a relay you run — a single small container. See
+[`relay/README.md`](relay/README.md); deploying it is one command. Set a
+repository variable `RELAY_URL` (e.g. `wss://songs-relay.fly.dev`) and both
+workflows compile it in. Until then the app builds and runs exactly as before,
+with Online shown as unavailable rather than failing when tapped.
+
+Traffic through the relay is `wss://`-encrypted in transit but not end to end:
+the relay operator can see which verse a group is on, and anyone who learns a
+live join code can follow along. Codes are random out of ~887 million, so
+guessing is impractical — but treat a session as "not secret".
 
 ## Project layout
 

@@ -8,6 +8,7 @@ import 'discovery.dart';
 import 'host.dart';
 import 'join_code.dart';
 import 'live_snapshot.dart';
+import 'relay_config.dart';
 
 enum LiveRole { none, leader, member }
 
@@ -20,6 +21,7 @@ class LiveSessionController extends ChangeNotifier {
 
   LiveHost? _host;
   ConnectionInfo? _connection;
+  LiveMode _mode = LiveMode.lan;
   String _leaderName = 'Leader';
   int _memberCount = 0;
   int _revision = 0;
@@ -41,6 +43,14 @@ class LiveSessionController extends ChangeNotifier {
 
   // ── Leader getters ──
   ConnectionInfo? get connection => _connection;
+
+  /// How the current (or next) session is carried.
+  LiveMode get mode => _mode;
+  bool get isOnlineSession => _mode == LiveMode.online;
+
+  /// Whether an online session can be offered at all.
+  bool get onlineAvailable => relayConfigured;
+
   String get leaderName => _leaderName;
   int get memberCount => _memberCount;
   LiveSnapshot? get current => _current;
@@ -53,20 +63,42 @@ class LiveSessionController extends ChangeNotifier {
 
   // ─────────────────────────── Leader ───────────────────────────
 
-  Future<void> startLeading({required String leaderName}) async {
+  Future<void> startLeading({
+    required String leaderName,
+    LiveMode mode = LiveMode.lan,
+  }) async {
     if (isActive || _busy) return;
+    // Asking for online without a relay configured would fail obscurely at
+    // connect time; refuse up front so the UI can explain why.
+    if (mode == LiveMode.online && !relayConfigured) {
+      _memberMessage = 'This build has no relay configured, so online '
+          'sessions are unavailable. See relay/README.md.';
+      notifyListeners();
+      return;
+    }
     _busy = true;
+    _mode = mode;
     notifyListeners();
 
     _leaderName = leaderName.trim().isEmpty ? 'Leader' : leaderName.trim();
-    final LiveHost host = LiveHost();
+    final LiveHost host = LiveHost.forMode(mode);
     host.onMembersChanged = (int count) {
       _memberCount = count;
       notifyListeners();
     };
     _host = host;
     final String code = JoinCode.generate();
-    _connection = await host.start(code: code, leaderName: _leaderName);
+    try {
+      _connection = await host.start(code: code, leaderName: _leaderName);
+    } catch (error) {
+      _host = null;
+      _busy = false;
+      _memberMessage = mode == LiveMode.online
+          ? 'Could not reach the relay. Check your internet connection.'
+          : 'Could not start the session.';
+      notifyListeners();
+      return;
+    }
 
     _role = LiveRole.leader;
     _busy = false;
@@ -136,21 +168,42 @@ class LiveSessionController extends ChangeNotifier {
 
   // ─────────────────────────── Member ───────────────────────────
 
-  Future<void> joinByCode(String code, {required String memberName}) async {
+  Future<void> joinByCode(
+    String code, {
+    required String memberName,
+    LiveMode mode = LiveMode.lan,
+  }) async {
     final String normalized = JoinCode.normalize(code);
     _role = LiveRole.member;
+    _mode = mode;
     _memberStatus = LiveClientStatus.connecting;
-    _memberMessage = 'Looking for a session…';
+    _memberMessage = mode == LiveMode.online
+        ? 'Connecting…'
+        : 'Looking for a session…';
     _memberSnapshot = null;
     notifyListeners();
+
+    if (mode == LiveMode.online) {
+      if (!relayConfigured) {
+        _memberStatus = LiveClientStatus.error;
+        _memberMessage = 'This build has no relay configured, so online '
+            'sessions are unavailable. See relay/README.md.';
+        notifyListeners();
+        return;
+      }
+      // No lookup needed: the relay resolves the code itself, which is the
+      // whole point — there is nothing to discover across the internet.
+      await _connectClient(ConnectionInfo.online(code: normalized),
+          memberName: memberName);
+      return;
+    }
 
     final ConnectionInfo? info = await resolveSession(normalized);
     if (info == null) {
       _memberStatus = LiveClientStatus.error;
       _memberMessage =
-          'No session found for code $normalized. Make sure you are on the '
-          'same WiFi as the leader (or, in the web preview, in another tab of '
-          'this browser), or scan the QR code instead.';
+          'No session found for code $normalized on this WiFi. If the leader '
+          'is somewhere else, switch to Online and try again.';
       notifyListeners();
       return;
     }
@@ -160,6 +213,7 @@ class LiveSessionController extends ChangeNotifier {
   Future<void> joinByConnection(ConnectionInfo info,
       {required String memberName}) async {
     _role = LiveRole.member;
+    _mode = info.mode;
     _memberStatus = LiveClientStatus.connecting;
     _memberMessage = null;
     _memberSnapshot = null;
@@ -169,7 +223,7 @@ class LiveSessionController extends ChangeNotifier {
 
   Future<void> _connectClient(ConnectionInfo info,
       {required String memberName}) async {
-    final LiveClient client = LiveClient();
+    final LiveClient client = LiveClient.forMode(info.mode);
     _client = client;
     _statusSub = client.statuses.listen(_onMemberStatus);
     _snapSub = client.snapshots.listen(_onMemberSnapshot);
@@ -206,6 +260,7 @@ class LiveSessionController extends ChangeNotifier {
     _memberMessage = null;
     _memberSnapshot = null;
     _role = LiveRole.none;
+    _mode = LiveMode.lan;
     notifyListeners();
   }
 

@@ -22,6 +22,10 @@ enum FrameType {
   /// Member -> leader: leaving.
   leave,
 
+  /// Relay -> leader: how many members are currently connected. Only the relay
+  /// originates this; on a LAN session the host counts its own sockets.
+  members,
+
   unknown,
 }
 
@@ -35,6 +39,7 @@ class Frame {
     this.name,
     this.id,
     this.reason,
+    this.count,
   });
 
   final FrameType type;
@@ -43,6 +48,7 @@ class Frame {
   final String? name;
   final String? id;
   final String? reason;
+  final int? count;
 
   factory Frame.join({required String code, required String name, String? id}) =>
       Frame(type: FrameType.join, code: code, name: name, id: id);
@@ -59,6 +65,9 @@ class Frame {
 
   factory Frame.leave({String? id}) => Frame(type: FrameType.leave, id: id);
 
+  factory Frame.members(int count) =>
+      Frame(type: FrameType.members, count: count);
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         't': type.name,
         if (snapshot != null) 'snap': snapshot!.toJson(),
@@ -66,6 +75,7 @@ class Frame {
         if (name != null) 'name': name,
         if (id != null) 'id': id,
         if (reason != null) 'reason': reason,
+        if (count != null) 'count': count,
       };
 
   String encode() => jsonEncode(toJson());
@@ -88,6 +98,7 @@ class Frame {
         name: json['name'] as String?,
         id: json['id'] as String?,
         reason: json['reason'] as String?,
+        count: (json['count'] as num?)?.toInt(),
       );
     } catch (_) {
       return const Frame(type: FrameType.unknown);

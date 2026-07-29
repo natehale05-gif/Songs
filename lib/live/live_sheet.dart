@@ -44,6 +44,13 @@ class _LiveSheetState extends State<_LiveSheet> {
   final TextEditingController _code = TextEditingController();
   _Mode _mode = _Mode.home;
 
+  /// Chosen transport. Online is the better default when it is available: it
+  /// covers the same-WiFi case too, and adds cellular and long distance.
+  LiveMode? _transport;
+
+  LiveMode _transportFor(LiveSessionController live) =>
+      _transport ??= live.onlineAvailable ? LiveMode.online : LiveMode.lan;
+
   @override
   void dispose() {
     _name.dispose();
@@ -108,14 +115,12 @@ class _LiveSheetState extends State<_LiveSheet> {
         _title('Small Group'),
         const SizedBox(height: 6),
         Text(
-          kIsWeb
-              ? 'Lead a group and others follow the current verse live. In this '
-                  'web preview, members join from another tab of this browser.'
-              : 'Lead a group and others follow along on their phones — works '
-                  'offline over the same WiFi or a hotspot.',
+          _blurb(live),
           style: TextStyle(color: p.label3, fontSize: 13.5, height: 1.35),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
+        _transportPicker(live),
+        const SizedBox(height: 14),
         _field(_name, 'Your name', TextCapitalization.words),
         const SizedBox(height: 14),
         _primaryButton(
@@ -123,7 +128,10 @@ class _LiveSheetState extends State<_LiveSheet> {
           icon: Icons.cast_connected,
           onTap: live.busy
               ? null
-              : () => live.startLeading(leaderName: _name.text),
+              : () => live.startLeading(
+                    leaderName: _name.text,
+                    mode: _transportFor(live),
+                  ),
         ),
         const SizedBox(height: 10),
         _secondaryButton('Join a group',
@@ -149,6 +157,8 @@ class _LiveSheetState extends State<_LiveSheet> {
           ],
         ),
         const SizedBox(height: 14),
+        _transportPicker(live),
+        const SizedBox(height: 14),
         _field(_name, 'Your name (optional)', TextCapitalization.words),
         const SizedBox(height: 12),
         _field(_code, 'Join code (e.g. K7QP24)', TextCapitalization.characters),
@@ -156,7 +166,11 @@ class _LiveSheetState extends State<_LiveSheet> {
         _primaryButton('Join with code',
             icon: Icons.login,
             onTap: () {
-              live.joinByCode(_code.text, memberName: _memberName);
+              live.joinByCode(
+                _code.text,
+                memberName: _memberName,
+                mode: _transportFor(live),
+              );
               _openMemberView();
             }),
         if (!kIsWeb) ...[
@@ -185,7 +199,11 @@ class _LiveSheetState extends State<_LiveSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Center(child: _title("You're leading")),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        // Which transport is live decides what the leader should tell people,
+        // so it is worth stating rather than leaving them to guess.
+        Center(child: _modeBadge(live.isOnlineSession)),
+        const SizedBox(height: 14),
         if (conn != null)
           Center(
             child: Container(
@@ -268,7 +286,129 @@ class _LiveSheetState extends State<_LiveSheet> {
     );
   }
 
+  /// Small pill naming the transport carrying this session.
+  Widget _modeBadge(bool online) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: p.fill1,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(online ? Icons.public : Icons.wifi, size: 14, color: p.label2),
+          const SizedBox(width: 6),
+          Text(
+            online ? 'Online — anyone with internet' : 'Same WiFi only',
+            style: TextStyle(
+                color: p.label2, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Building blocks ──
+  /// Explains what the currently selected transport actually does, since the
+  /// difference (same WiFi vs anywhere) is the whole point of the choice.
+  String _blurb(LiveSessionController live) {
+    if (_transportFor(live) == LiveMode.online) {
+      return 'Everyone follows the current verse live. Online works over '
+          'cellular and across any distance — you just all need internet.';
+    }
+    if (kIsWeb) {
+      return 'Everyone follows the current verse live. Without a relay, the '
+          'web build can only sync between tabs of this browser.';
+    }
+    return 'Everyone follows the current verse live. Same WiFi needs no '
+        'internet at all — just one network or a hotspot.';
+  }
+
+  /// Two-way choice between the LAN transport and the relay.
+  Widget _transportPicker(LiveSessionController live) {
+    final LiveMode selected = _transportFor(live);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: p.fill1,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              _transportOption(
+                label: 'Same WiFi',
+                icon: Icons.wifi,
+                selected: selected == LiveMode.lan,
+                onTap: () => setState(() => _transport = LiveMode.lan),
+              ),
+              _transportOption(
+                label: 'Online',
+                icon: Icons.public,
+                selected: selected == LiveMode.online,
+                enabled: live.onlineAvailable,
+                onTap: live.onlineAvailable
+                    ? () => setState(() => _transport = LiveMode.online)
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        if (!live.onlineAvailable) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Online needs a relay. This build has none configured — '
+            'see relay/README.md.',
+            style: TextStyle(color: p.label3, fontSize: 12, height: 1.3),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _transportOption({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    bool enabled = true,
+    VoidCallback? onTap,
+  }) {
+    final Color fg = !enabled
+        ? p.label4
+        : selected
+            ? p.navyText
+            : p.label2;
+    return Expanded(
+      child: Pressable(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? p.navy : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: fg),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                    color: fg, fontSize: 13.5, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _title(String text) => Text(text,
       style: TextStyle(
           color: p.label,

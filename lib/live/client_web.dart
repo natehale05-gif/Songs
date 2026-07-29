@@ -81,6 +81,7 @@ class LiveClientWeb implements LiveClient {
       case FrameType.join:
       case FrameType.ping:
       case FrameType.leave:
+      case FrameType.members:
       case FrameType.unknown:
         break;
     }
