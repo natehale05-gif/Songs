@@ -113,10 +113,14 @@ jobs:
 
       # build-number drives Android's versionCode, which must increase for an
       # in-place update; run_number gives that for free.
+      # APP_VERSION is what the in-app update check compares against the
+      # newest published release.
       - run: >
           flutter build ${{ matrix.platform }} --release
           --build-name=${{ steps.v.outputs.number }}
           --build-number=${{ github.run_number }}
+          --dart-define=APP_VERSION=${{ steps.v.outputs.number }}
+          --dart-define=APP_BUILD=${{ github.run_number }}
 
       - run: mkdir -p dist
         shell: bash

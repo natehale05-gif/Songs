@@ -41,7 +41,12 @@ jobs:
 
       - name: Build web
         # base-href must match the repository name for project Pages sites.
-        run: flutter build web --release --base-href /Songs/
+        # build-number lands in version.json; the running app compares it with
+        # APP_BUILD to notice that a newer build has been deployed.
+        run: >
+          flutter build web --release --base-href /Songs/
+          --build-number=${{ github.run_number }}
+          --dart-define=APP_BUILD=${{ github.run_number }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

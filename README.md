@@ -47,6 +47,26 @@ You only do this the first time. The web app has no such prompt.
 Publish a new set of builds by running the **Build apps** workflow from
 the Actions tab, or by pushing a `v*` tag.
 
+### Staying up to date
+
+The app checks for a newer version on launch and shows a slim bar offering it.
+Dismissing hides that version until a later one ships, and a failed check is
+silent — this app works offline, so it never treats "no network" as an error.
+
+- **Web** — updates itself. The service worker fetches the new build in the
+  background; the bar just offers to reload so you get it immediately.
+- **Windows, macOS, Linux, Android** — the bar links straight to the new
+  download for that platform. Installing over the top keeps your favourites
+  and set list, since those live outside the app bundle.
+
+Builds know their own version because CI passes
+`--dart-define=APP_VERSION` / `APP_BUILD`. A build made locally has neither, so
+it never prompts.
+
+Fully silent self-updating isn't possible for the desktop and Android builds:
+macOS and Windows would need paid signing certificates to update without a
+prompt, and Android cannot install an APK without the user confirming.
+
 ### Android signing (one-time setup)
 
 Android refuses to install an unsigned APK, and only a build signed with the

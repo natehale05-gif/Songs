@@ -10,6 +10,7 @@ import '../live/live_sheet.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../ui_kit.dart';
+import '../update/update_banner.dart';
 import 'reader_screen.dart';
 import 'setlist_present_screen.dart';
 
@@ -125,7 +126,38 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     return Scaffold(
       backgroundColor: p.bg,
-      body: Stack(
+      body: Column(
+        children: [
+          UpdateBanner(palette: p),
+          Expanded(child: _buildBody(state, p, filtered, isPopular, grouped, letters, bottomInset)),
+        ],
+      ),
+      floatingActionButton: _setListMode
+          ? null
+          : FloatingActionButton.extended(
+              backgroundColor: p.navy,
+              foregroundColor: Colors.white,
+              onPressed: () {
+                Haptics.light();
+                setState(() => _setListMode = true);
+              },
+              icon: const Icon(Icons.queue_music, size: 20),
+              label: const Text('Set List',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+    );
+  }
+
+  Widget _buildBody(
+    AppState state,
+    AppPalette p,
+    List<Song> filtered,
+    bool isPopular,
+    Map<String, List<Song>> grouped,
+    List<String> letters,
+    double bottomInset,
+  ) {
+    return Stack(
         children: [
           CustomScrollView(
             slivers: [
@@ -175,20 +207,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
             child: _buildLiveButton(p),
           ),
         ],
-      ),
-      floatingActionButton: _setListMode
-          ? null
-          : FloatingActionButton.extended(
-              backgroundColor: p.navy,
-              foregroundColor: Colors.white,
-              onPressed: () {
-                Haptics.light();
-                setState(() => _setListMode = true);
-              },
-              icon: const Icon(Icons.queue_music, size: 20),
-              label: const Text('Set List',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
     );
   }
 
