@@ -1,44 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2A4E96"/>
-      <stop offset="1" stop-color="#14285A"/>
-    </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFE491"/>
-      <stop offset="1" stop-color="#F2BC2E"/>
-    </linearGradient>
-  </defs>
 
-  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="#1C3975"/>
 
-  <!-- scale the composition and centre it on the canvas -->
-  <g transform="translate(512,512) scale(1.15) translate(-512,-548)">
-
-    <!-- eighth note -->
-    <g fill="url(#gold)">
-      <rect x="484" y="242" width="30" height="312" rx="15"/>
-      <path d="M514 250
-               C 596 284, 654 338, 654 410
-               C 654 454, 631 488, 601 509
-               C 616 473, 611 431, 582 400
-               C 559 375, 530 356, 514 342
-               Z"/>
-      <ellipse cx="436" cy="552" rx="86" ry="64" transform="rotate(-20 436 552)"/>
-    </g>
-
-    <!-- open hymnal -->
-    <g>
-      <path d="M512 694
-               C 444 652, 322 636, 208 652
-               L 208 812
-               C 322 796, 444 812, 512 854 Z"
-            fill="#FFFFFF"/>
-      <path d="M512 694
-               C 580 652, 702 636, 816 652
-               L 816 812
-               C 702 796, 580 812, 512 854 Z"
-            fill="#DCE3F0"/>
-    </g>
+  <!-- eighth note, scaled about its own centre and placed on the canvas centre -->
+  <g fill="#FFFFFF"
+     transform="translate(512,512) scale(1.65) translate(-503,-430)">
+    <rect x="484" y="242" width="30" height="312" rx="15"/>
+    <!-- the flag starts inside the stem so the two shapes overlap; abutting
+         them exactly leaves an anti-aliasing seam down the stem -->
+    <path d="M496 250
+             C 596 284, 654 338, 654 410
+             C 654 454, 631 488, 601 509
+             C 616 473, 611 431, 582 400
+             C 559 375, 530 356, 496 342
+             Z"/>
+    <ellipse cx="436" cy="552" rx="86" ry="64" transform="rotate(-20 436 552)"/>
   </g>
 </svg>

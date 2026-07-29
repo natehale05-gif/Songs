@@ -20,70 +20,44 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Brand colours, matching AppPalette.navy in lib/theme.dart.
-NAVY_TOP = "#2A4E96"
-NAVY_BOTTOM = "#14285A"
-NAVY_FLAT = "#1C3975"
+# Brand navy, matching AppPalette.navy in lib/theme.dart.
+NAVY = "#1C3975"
 
-# Content is drawn around (512, 548) and scaled about the canvas centre, so a
-# single scale factor controls how much breathing room each variant gets.
-FULL_BLEED_SCALE = 1.15   # app icon: content fills ~68% of the canvas
-MASKABLE_SCALE = 1.00     # web maskable: survives an 80%-diameter circle
-ADAPTIVE_SCALE = 0.82     # android adaptive: survives the 66dp safe circle
+# The note's own bounding box is centred on this point, so scaling about the
+# canvas centre keeps it centred while each variant gets its own breathing room.
+NOTE_CX, NOTE_CY = 503, 430
+
+FULL_BLEED_SCALE = 1.65   # app icon: note stands ~61% of the canvas tall
+MASKABLE_SCALE = 1.50     # web maskable: survives an 80%-diameter circle
+ADAPTIVE_SCALE = 1.30     # android adaptive: survives the 66dp safe circle
 
 ICON_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="{navy_top}"/>
-      <stop offset="1" stop-color="{navy_bottom}"/>
-    </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFE491"/>
-      <stop offset="1" stop-color="#F2BC2E"/>
-    </linearGradient>
-  </defs>
 {background}
-  <!-- scale the composition and centre it on the canvas -->
-  <g transform="translate(512,512) scale({scale}) translate(-512,-548)">
-
-    <!-- eighth note -->
-    <g fill="url(#gold)">
-      <rect x="484" y="242" width="30" height="312" rx="15"/>
-      <path d="M514 250
-               C 596 284, 654 338, 654 410
-               C 654 454, 631 488, 601 509
-               C 616 473, 611 431, 582 400
-               C 559 375, 530 356, 514 342
-               Z"/>
-      <ellipse cx="436" cy="552" rx="86" ry="64" transform="rotate(-20 436 552)"/>
-    </g>
-
-    <!-- open hymnal -->
-    <g>
-      <path d="M512 694
-               C 444 652, 322 636, 208 652
-               L 208 812
-               C 322 796, 444 812, 512 854 Z"
-            fill="#FFFFFF"/>
-      <path d="M512 694
-               C 580 652, 702 636, 816 652
-               L 816 812
-               C 702 796, 580 812, 512 854 Z"
-            fill="#DCE3F0"/>
-    </g>
+  <!-- eighth note, scaled about its own centre and placed on the canvas centre -->
+  <g fill="#FFFFFF"
+     transform="translate(512,512) scale({scale}) translate({-cx},{-cy})">
+    <rect x="484" y="242" width="30" height="312" rx="15"/>
+    <!-- the flag starts inside the stem so the two shapes overlap; abutting
+         them exactly leaves an anti-aliasing seam down the stem -->
+    <path d="M496 250
+             C 596 284, 654 338, 654 410
+             C 654 454, 631 488, 601 509
+             C 616 473, 611 431, 582 400
+             C 559 375, 530 356, 496 342
+             Z"/>
+    <ellipse cx="436" cy="552" rx="86" ry="64" transform="rotate(-20 436 552)"/>
   </g>
 </svg>
 """
 
-SOLID_BACKGROUND = '\n  <rect width="1024" height="1024" fill="url(#bg)"/>\n'
+SOLID_BACKGROUND = f'\n  <rect width="1024" height="1024" fill="{NAVY}"/>\n'
 
 
 def build_svg(scale: float, *, background: bool) -> str:
     return ICON_TEMPLATE.format(
-        navy_top=NAVY_TOP,
-        navy_bottom=NAVY_BOTTOM,
         scale=scale,
         background=SOLID_BACKGROUND if background else "",
+        **{"-cx": -NOTE_CX, "-cy": -NOTE_CY},
     )
 
 
@@ -98,7 +72,7 @@ def save(image: Image.Image, path: Path, *, opaque: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if opaque:
         # App Store rejects icons with an alpha channel.
-        flat = Image.new("RGB", image.size, NAVY_FLAT)
+        flat = Image.new("RGB", image.size, NAVY)
         flat.paste(image, mask=image.split()[3])
         flat.save(path)
     else:
