@@ -1,7 +1,7 @@
-name: Build desktop apps
+name: Build apps
 
-# Publishes downloadable Windows, macOS and Linux builds as GitHub Release
-# assets. Run it from the Actions tab ("Run workflow") or by pushing a v* tag.
+# Publishes downloadable Windows, macOS, Linux and Android builds as GitHub
+# Release assets. Run it from the Actions tab ("Run workflow") or push a v* tag.
 on:
   push:
     tags:
@@ -44,6 +44,8 @@ jobs:
             platform: macos
           - os: windows-latest
             platform: windows
+          - os: ubuntu-latest
+            platform: apk
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -62,6 +64,40 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "number=${tag#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Set up Java
+        if: matrix.platform == 'apk'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Android will not install an unsigned APK, and only a build signed with
+      # the same key can update one already installed. Without these secrets we
+      # fall back to the debug key, which still installs but changes identity
+      # between runs. See tool/make_android_keystore.sh.
+      - name: Configure Android signing
+        if: matrix.platform == 'apk'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set — the APK will be"
+            echo "::warning::debug-signed. It installs, but users cannot update in"
+            echo "::warning::place from a previous release. Run tool/make_android_keystore.sh."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > android/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+          echo "release keystore configured"
+
       # GTK is the Flutter shell; the gstreamer packages are required by
       # audioplayers_linux and CMake fails to configure without them.
       - name: Install Linux build dependencies
@@ -75,10 +111,20 @@ jobs:
 
       - run: flutter pub get
 
-      - run: flutter build ${{ matrix.platform }} --release
+      # build-number drives Android's versionCode, which must increase for an
+      # in-place update; run_number gives that for free.
+      - run: >
+          flutter build ${{ matrix.platform }} --release
+          --build-name=${{ steps.v.outputs.number }}
+          --build-number=${{ github.run_number }}
 
       - run: mkdir -p dist
         shell: bash
+
+      # --- Android: one universal APK that installs on any device ---
+      - name: Package Android
+        if: matrix.platform == 'apk'
+        run: cp build/app/outputs/flutter-apk/app-release.apk dist/songs-of-the-church.apk
 
       # --- Linux: a single double-clickable AppImage, plus a plain tarball ---
       - name: Package Linux
@@ -153,7 +199,7 @@ jobs:
           files: dist/*
           generate_release_notes: true
           body: |
-            Desktop builds of Songs of the Church. Download one file, open it,
+            Songs of the Church for every platform. Download one file, open it,
             and the whole hymnal is there — everything works offline.
 
             | Platform | Download | What to do |
@@ -161,6 +207,7 @@ jobs:
             | **Windows** | `songs-of-the-church-windows-setup.exe` | Run it. Installs for just you, so there's no admin prompt. |
             | **macOS** | `songs-of-the-church-macos.dmg` | Open it and drag the app to Applications. |
             | **Linux** | `songs-of-the-church-x86_64.AppImage` | Mark it executable and run it. No install needed. |
+            | **Android** | `songs-of-the-church.apk` | Open it on your phone and tap Install. |
 
             Prefer no installer? `…-windows-x64.zip`, `…-macos.zip` and
             `…-linux-x64.tar.gz` are the same app as plain archives.
@@ -175,3 +222,6 @@ jobs:
               anyway*.
             - **Linux** — `chmod +x songs-of-the-church-x86_64.AppImage`, or
               tick *Allow executing file as program* in the file manager.
+            - **Android** — since this is not from the Play Store, Android asks
+              you to allow installs from your browser or files app the first
+              time. Tap *Settings* on the prompt, enable it, then go back.

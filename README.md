@@ -10,6 +10,7 @@ from a single codebase.
 [![Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-windows-setup.exe)
 [![macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-macos.dmg)
 [![Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-x86_64.AppImage)
+[![Android](https://img.shields.io/badge/Download-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church.apk)
 [![Web](https://img.shields.io/badge/Open-in%20browser-1C3975?style=for-the-badge&logo=googlechrome&logoColor=white)](https://natehale05-gif.github.io/Songs/)
 
 One file per platform, and all 715 songs work offline the moment it opens.
@@ -19,6 +20,7 @@ One file per platform, and all 715 songs work offline the moment it opens.
 | **Windows** | `…-windows-setup.exe` | Run it. Installs for just you, so there's no admin prompt, and adds Start Menu and desktop shortcuts. |
 | **macOS** | `…-macos.dmg` | Open it, drag the app to Applications. |
 | **Linux** | `…-x86_64.AppImage` | `chmod +x` it and run — no install, no dependencies. |
+| **Android** | `songs-of-the-church.apk` | Open it on your phone and tap Install. One APK, every device. |
 | **Web** | nothing to install | Works in any browser; "Add to Home Screen" installs it as an app. |
 
 Prefer plain archives? Every release also ships
@@ -36,11 +38,38 @@ certificate — so each OS asks once whether you trust the app:
   macOS 15+, go to *System Settings → Privacy & Security → Open Anyway*.
 - **Windows** — if SmartScreen appears, choose *More info → Run anyway*.
 - **Linux** — nothing; just make the AppImage executable.
+- **Android** — because the APK doesn't come from the Play Store, Android asks
+  you to allow installs from your browser the first time. Tap *Settings* on the
+  prompt, turn it on, then go back.
 
 You only do this the first time. The web app has no such prompt.
 
-Publish a new set of builds by running the **Build desktop apps** workflow from
+Publish a new set of builds by running the **Build apps** workflow from
 the Actions tab, or by pushing a `v*` tag.
+
+### Android signing (one-time setup)
+
+Android refuses to install an unsigned APK, and only a build signed with the
+**same** key can update one already installed. Generate a key once:
+
+```bash
+tool/make_android_keystore.sh
+```
+
+It writes `android/upload-keystore.jks` and `android/key.properties` — both
+gitignored, never commit them — and prints four values to add under
+*Settings → Secrets and variables → Actions*:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | the base64 blob the script prints |
+| `ANDROID_KEYSTORE_PASSWORD` | your keystore password |
+| `ANDROID_KEY_PASSWORD` | same password |
+| `ANDROID_KEY_ALIAS` | `upload` |
+
+Until those exist the workflow still builds an APK, but signs it with the
+throwaway debug key: it installs fine, yet a later release won't upgrade it in
+place. **Back the keystore up** — losing it means the same thing permanently.
 
 ## Features
 
