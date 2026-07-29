@@ -1,0 +1,130 @@
+name: Build desktop apps
+
+# Publishes downloadable Windows, macOS and Linux builds as GitHub Release
+# assets. Run it from the Actions tab ("Run workflow") or by pushing a v* tag.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to publish (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: 3.44.6
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  build:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            asset: songs-of-the-church-linux-x64.tar.gz
+          - os: macos-latest
+            platform: macos
+            asset: songs-of-the-church-macos.zip
+          - os: windows-latest
+            platform: windows
+            asset: songs-of-the-church-windows-x64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      # GTK is the Flutter shell; the gstreamer packages are required by
+      # audioplayers_linux and CMake fails to configure without them.
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+
+      - run: flutter pub get
+
+      - run: flutter build ${{ matrix.platform }} --release
+
+      - name: Package Linux bundle
+        if: matrix.platform == 'linux'
+        run: |
+          mv build/linux/x64/release/bundle songs-of-the-church
+          tar -czf "${{ matrix.asset }}" songs-of-the-church
+
+      - name: Package macOS app
+        if: matrix.platform == 'macos'
+        run: |
+          app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          if [ -z "$app" ]; then echo "no .app produced"; exit 1; fi
+          ditto -c -k --sequesterRsrc --keepParent "$app" "${{ matrix.asset }}"
+
+      - name: Package Windows build
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Rename-Item build/windows/x64/runner/Release songs-of-the-church
+          Compress-Archive -Path build/windows/x64/runner/songs-of-the-church -DestinationPath "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Asset names are version-free on purpose, so the README's
+          # /releases/latest/download/ links keep working for every release.
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: ${{ github.event.inputs.version || github.ref_name }}
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            Desktop builds of Songs of the Church.
+
+            | Platform | Download |
+            | --- | --- |
+            | Windows | `songs-of-the-church-windows-x64.zip` |
+            | macOS | `songs-of-the-church-macos.zip` |
+            | Linux | `songs-of-the-church-linux-x64.tar.gz` |
+
+            These builds are **not code-signed**. macOS will report the app as
+            unverified — right-click the app and choose *Open*, or run
+            `xattr -dr com.apple.quarantine "Songs of the Church.app"`.
+            Windows SmartScreen may warn: choose *More info -> Run anyway*.

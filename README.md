@@ -5,6 +5,27 @@ A cross-platform **Flutter / Dart** rebuild of the
 It runs natively and offline on **Android, iOS, Web, macOS, Windows and Linux**
 from a single codebase.
 
+## Download
+
+**[Open the web app](https://natehale05-gif.github.io/Songs/)** — no install needed.
+
+Or download a desktop build:
+
+[![Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-windows-x64.zip)
+[![macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-macos.zip)
+[![Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-linux-x64.tar.gz)
+
+These always point at the newest [release](https://github.com/natehale05-gif/Songs/releases).
+The builds are **not code-signed**, so:
+
+- **macOS** — right-click the app and choose *Open* the first time, or run
+  `xattr -dr com.apple.quarantine "songs_of_the_church.app"`.
+- **Windows** — if SmartScreen warns, choose *More info → Run anyway*.
+- **Linux** — extract the archive and run `./songs_of_the_church`.
+
+Publish a new set of builds by running the **Build desktop apps** workflow from
+the Actions tab, or by pushing a `v*` tag.
+
 ## Features
 
 - **715 songs** across English, Spanish, Hebrew, Greek, Albanian and Chinese,
@@ -75,6 +96,16 @@ flutter run -d chrome       # web
 flutter build apk           # Android
 flutter build ios           # iOS
 flutter build macos         # macOS  (also: windows / linux / web)
+```
+
+Building for **Linux** additionally needs the GTK and GStreamer headers — the
+latter are required by `audioplayers_linux`, and CMake fails to configure
+without them:
+
+```bash
+sudo apt-get install -y clang cmake ninja-build pkg-config \
+  libgtk-3-dev liblzma-dev \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 ```
 
 ## Testing

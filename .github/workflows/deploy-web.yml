@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - main
-      # Allow previewing the small-group feature branch before it is merged.
-      - cursor/small-group-in-real-app-59da
+      # Allow previewing the active feature branch before it is merged.
+      - claude/songs-app-polish-build-aplgp0
   workflow_dispatch:
 
 permissions:
