@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Songs of the Church
+GenericName=Hymnal
+Comment=A hymnal and worship set-list app
+Exec=songs_of_the_church
+Icon=songs-of-the-church
+Terminal=false
+Categories=Audio;Music;AudioVideo;
+Keywords=hymn;hymnal;worship;songs;church;

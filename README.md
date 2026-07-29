@@ -7,21 +7,37 @@ from a single codebase.
 
 ## Download
 
-**[Open the web app](https://natehale05-gif.github.io/Songs/)** — no install needed.
+[![Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-windows-setup.exe)
+[![macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-macos.dmg)
+[![Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-x86_64.AppImage)
+[![Web](https://img.shields.io/badge/Open-in%20browser-1C3975?style=for-the-badge&logo=googlechrome&logoColor=white)](https://natehale05-gif.github.io/Songs/)
 
-Or download a desktop build:
+One file per platform, and all 715 songs work offline the moment it opens.
 
-[![Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-windows-x64.zip)
-[![macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-macos.zip)
-[![Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church-linux-x64.tar.gz)
+| Platform | You get | What to do |
+| --- | --- | --- |
+| **Windows** | `…-windows-setup.exe` | Run it. Installs for just you, so there's no admin prompt, and adds Start Menu and desktop shortcuts. |
+| **macOS** | `…-macos.dmg` | Open it, drag the app to Applications. |
+| **Linux** | `…-x86_64.AppImage` | `chmod +x` it and run — no install, no dependencies. |
+| **Web** | nothing to install | Works in any browser; "Add to Home Screen" installs it as an app. |
 
-These always point at the newest [release](https://github.com/natehale05-gif/Songs/releases).
-The builds are **not code-signed**, so:
+Prefer plain archives? Every release also ships
+`…-windows-x64.zip`, `…-macos.zip` and `…-linux-x64.tar.gz`.
 
-- **macOS** — right-click the app and choose *Open* the first time, or run
-  `xattr -dr com.apple.quarantine "songs_of_the_church.app"`.
-- **Windows** — if SmartScreen warns, choose *More info → Run anyway*.
-- **Linux** — extract the archive and run `./songs_of_the_church`.
+The download links always resolve to the newest
+[release](https://github.com/natehale05-gif/Songs/releases).
+
+### First launch
+
+The desktop builds aren't code-signed — signing needs a paid Apple/Microsoft
+certificate — so each OS asks once whether you trust the app:
+
+- **macOS** — right-click the app and choose *Open*, then *Open* again. On
+  macOS 15+, go to *System Settings → Privacy & Security → Open Anyway*.
+- **Windows** — if SmartScreen appears, choose *More info → Run anyway*.
+- **Linux** — nothing; just make the AppImage executable.
+
+You only do this the first time. The web app has no such prompt.
 
 Publish a new set of builds by running the **Build desktop apps** workflow from
 the Actions tab, or by pushing a `v*` tag.

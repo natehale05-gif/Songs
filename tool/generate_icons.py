@@ -133,6 +133,10 @@ def main() -> None:
     render(full, 256).save(ico, sizes=[(s, s) for s in sizes])
     print(f"  {ico.relative_to(ROOT)}")
 
+    print("linux")
+    # Used by the .desktop entry and as the AppImage's icon.
+    save(render(full, 256), ROOT / "linux/packaging/songs-of-the-church.png")
+
     # Keep the iOS asset catalog honest about the alpha-free icons above.
     contents = ROOT / "ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json"
     data = json.loads(contents.read_text())

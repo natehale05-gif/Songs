@@ -40,13 +40,10 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux
-            asset: songs-of-the-church-linux-x64.tar.gz
           - os: macos-latest
             platform: macos
-            asset: songs-of-the-church-macos.zip
           - os: windows-latest
             platform: windows
-            asset: songs-of-the-church-windows-x64.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +52,15 @@ jobs:
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Resolve version
+        id: v
+        shell: bash
+        # Strip the leading "v" — installers want a bare numeric version.
+        run: |
+          tag="${{ github.event.inputs.version || github.ref_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "number=${tag#v}" >> "$GITHUB_OUTPUT"
 
       # GTK is the Flutter shell; the gstreamer packages are required by
       # audioplayers_linux and CMake fails to configure without them.
@@ -71,30 +77,61 @@ jobs:
 
       - run: flutter build ${{ matrix.platform }} --release
 
-      - name: Package Linux bundle
+      - run: mkdir -p dist
+        shell: bash
+
+      # --- Linux: a single double-clickable AppImage, plus a plain tarball ---
+      - name: Package Linux
         if: matrix.platform == 'linux'
         run: |
+          bash tool/make_appimage.sh "dist/songs-of-the-church-x86_64.AppImage"
           mv build/linux/x64/release/bundle songs-of-the-church
-          tar -czf "${{ matrix.asset }}" songs-of-the-church
+          tar -czf dist/songs-of-the-church-linux-x64.tar.gz songs-of-the-church
 
-      - name: Package macOS app
+      # --- macOS: a drag-to-Applications disk image, plus a plain zip ---
+      - name: Package macOS
         if: matrix.platform == 'macos'
         run: |
           app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
           if [ -z "$app" ]; then echo "no .app produced"; exit 1; fi
-          ditto -c -k --sequesterRsrc --keepParent "$app" "${{ matrix.asset }}"
 
-      - name: Package Windows build
+          # Ad-hoc signature. arm64 refuses to execute a wholly unsigned
+          # binary, so without this the app cannot open at all on Apple
+          # Silicon. It does not replace Developer ID notarisation.
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+
+          ditto -c -k --sequesterRsrc --keepParent "$app" \
+            "dist/songs-of-the-church-macos.zip"
+
+          staging=$(mktemp -d)
+          cp -R "$app" "$staging/"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname "Songs of the Church" \
+            -srcfolder "$staging" -ov -format UDZO \
+            "dist/songs-of-the-church-macos.dmg"
+
+      # --- Windows: a per-user installer (no UAC), plus a portable zip ---
+      - name: Package Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc "/DAppVersion=${{ steps.v.outputs.number }}" windows\packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
           Rename-Item build/windows/x64/runner/Release songs-of-the-church
-          Compress-Archive -Path build/windows/x64/runner/songs-of-the-church -DestinationPath "${{ matrix.asset }}"
+          Compress-Archive -Path build/windows/x64/runner/songs-of-the-church `
+            -DestinationPath dist/songs-of-the-church-windows-x64.zip
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}
-          path: ${{ matrix.asset }}
+          path: dist/*
           if-no-files-found: error
 
   release:
@@ -116,15 +153,25 @@ jobs:
           files: dist/*
           generate_release_notes: true
           body: |
-            Desktop builds of Songs of the Church.
+            Desktop builds of Songs of the Church. Download one file, open it,
+            and the whole hymnal is there — everything works offline.
 
-            | Platform | Download |
-            | --- | --- |
-            | Windows | `songs-of-the-church-windows-x64.zip` |
-            | macOS | `songs-of-the-church-macos.zip` |
-            | Linux | `songs-of-the-church-linux-x64.tar.gz` |
+            | Platform | Download | What to do |
+            | --- | --- | --- |
+            | **Windows** | `songs-of-the-church-windows-setup.exe` | Run it. Installs for just you, so there's no admin prompt. |
+            | **macOS** | `songs-of-the-church-macos.dmg` | Open it and drag the app to Applications. |
+            | **Linux** | `songs-of-the-church-x86_64.AppImage` | Mark it executable and run it. No install needed. |
 
-            These builds are **not code-signed**. macOS will report the app as
-            unverified — right-click the app and choose *Open*, or run
-            `xattr -dr com.apple.quarantine "Songs of the Church.app"`.
-            Windows SmartScreen may warn: choose *More info -> Run anyway*.
+            Prefer no installer? `…-windows-x64.zip`, `…-macos.zip` and
+            `…-linux-x64.tar.gz` are the same app as plain archives.
+
+            **First launch.** These builds aren't code-signed, so each OS asks
+            once whether you trust the app:
+
+            - **macOS** — right-click the app and choose *Open*, then *Open*
+              again. On macOS 15+, use *System Settings -> Privacy & Security
+              -> Open Anyway*. Only needed the first time.
+            - **Windows** — if SmartScreen appears, choose *More info -> Run
+              anyway*.
+            - **Linux** — `chmod +x songs-of-the-church-x86_64.AppImage`, or
+              tick *Allow executing file as program* in the file manager.
