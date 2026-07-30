@@ -44,12 +44,32 @@ Any host that can run a container and keep a WebSocket open works. The image
 compiles to a single native binary on a `scratch` base, so it is a few
 megabytes and starts instantly.
 
+CI already builds and publishes it on every change to `relay/`:
+
+```
+ghcr.io/natehale05-gif/songs-relay:latest
+```
+
+so you can usually skip building entirely. Packages pushed to GHCR start out
+**private** — if your host pulls anonymously, set the package to public under
+*Packages → songs-relay → Package settings*, or give the host a pull secret.
+
 ### Fly.io
+
+Deploy the prebuilt image:
 
 ```bash
 cd relay
-fly launch --copy-config --now      # uses the bundled fly.toml
-fly status                          # note the hostname
+fly launch --copy-config --no-deploy          # creates the app from fly.toml
+fly deploy --image ghcr.io/natehale05-gif/songs-relay:latest
+fly status                                    # note the hostname
+```
+
+Or let Fly build from source instead:
+
+```bash
+cd relay
+fly launch --copy-config --now
 ```
 
 `fly.toml` deliberately keeps one machine warm (`min_machines_running = 1`).

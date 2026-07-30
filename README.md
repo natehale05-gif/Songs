@@ -146,11 +146,12 @@ behind carrier NAT, so there is no address to dial and no port to open, and a
 directly-hosted session cannot be reached. The relay matches them by join code
 and forwards the current verse. It works identically on web and native.
 
-Online needs a relay you run — a single small container. See
-[`relay/README.md`](relay/README.md); deploying it is one command. Set a
-repository variable `RELAY_URL` (e.g. `wss://songs-relay.fly.dev`) and both
-workflows compile it in. Until then the app builds and runs exactly as before,
-with Online shown as unavailable rather than failing when tapped.
+Online needs a relay you run — a single small container. CI already builds and
+publishes it to `ghcr.io/natehale05-gif/songs-relay:latest`, so deploying is
+one command; see [`relay/README.md`](relay/README.md). Then set a repository
+variable `RELAY_URL` (e.g. `wss://songs-relay.fly.dev`) and both workflows
+compile it in. Until then the app builds and runs exactly as before, with
+Online shown as unavailable rather than failing when tapped.
 
 Traffic through the relay is `wss://`-encrypted in transit but not end to end:
 the relay operator can see which verse a group is on, and anyone who learns a
