@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -126,11 +125,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     return Scaffold(
       backgroundColor: p.bg,
-      body: Column(
-        children: [
-          UpdateBanner(palette: p),
-          Expanded(child: _buildBody(state, p, filtered, isPopular, grouped, letters, bottomInset)),
-        ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            UpdateBanner(palette: p),
+            Expanded(
+                child: _buildBody(
+                    state, p, filtered, isPopular, grouped, letters, bottomInset)),
+          ],
+        ),
       ),
       floatingActionButton: _setListMode
           ? null
@@ -210,37 +214,40 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  /// Plain title sliver rather than a CupertinoSliverNavigationBar: that widget
+  /// always reserves an inset-height row for back/action buttons above the
+  /// large title, and with the song count moved inline there is nothing to put
+  /// in it — it just rendered as an empty white band.
   Widget _buildNavBar(AppState state, AppPalette p) {
-    return CupertinoSliverNavigationBar(
-      largeTitle: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: Text(
-              'Songs of the Church',
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: kDisplaySerif,
-                fontWeight: FontWeight.w700,
-                color: p.label,
-                letterSpacing: -0.4,
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Flexible(
+              child: Text(
+                'Songs of the Church',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: kDisplaySerif,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  color: p.label,
+                  letterSpacing: -0.4,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${state.book.songs.length} songs',
-            style: TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w600, color: p.label3),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              '${state.book.songs.length} songs',
+              style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: p.label3),
+            ),
+          ],
+        ),
       ),
-      automaticallyImplyLeading: false,
-      backgroundColor: p.surface.withValues(alpha: 0.72),
-      border: const Border(),
-      padding: const EdgeInsetsDirectional.only(end: 16),
     );
   }
 

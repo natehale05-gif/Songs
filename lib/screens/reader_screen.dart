@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -28,6 +30,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
   late Set<int> _enabledVerses;
   final ScrollController _scrollController = ScrollController();
 
+  /// One key per part in scroll mode, plus the viewport itself, so a leader
+  /// who is scrolling can work out which part is actually on screen and
+  /// publish that rather than a stale tap index.
+  final List<GlobalKey> _scrollPartKeys = <GlobalKey>[];
+  final GlobalKey _scrollViewKey = GlobalKey();
+  int _scrollIdx = 0;
+
   String _mode = 'scroll';
   int _tapIdx = 0;
   int _tapDir = 1;
@@ -46,9 +55,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
     super.didChangeDependencies();
     if (!_liveInit) {
       _liveInit = true;
-      // When hosting a live session, present verse-by-verse and mirror it.
+      // Mirror straight away when leading, but leave the reading mode alone:
+      // the leader may prefer to scroll, and members follow either way.
       if (context.read<LiveSessionController>().isLeader) {
-        _mode = 'tap';
         WidgetsBinding.instance.addPostFrameCallback((_) => _publishLive());
       }
     }
@@ -68,7 +77,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
       );
       return;
     }
-    final idx = _tapIdx.clamp(0, parts.length - 1);
+    final idx = (_mode == 'scroll' ? _scrollIdx : _tapIdx)
+        .clamp(0, parts.length - 1);
     final part = parts[idx];
     live.publish(
       songId: _song.id,
@@ -153,8 +163,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
           Expanded(
             child: Text(
               _mode == 'scroll'
-                  ? 'Leading live — switch to Tap to send each verse'
-                  : 'Leading live — members follow the highlighted verse',
+                  ? 'Leading live — members follow as you scroll'
+                  : 'Leading live — members follow each verse',
               style: const TextStyle(
                   color: Color(0xFFFF3B30),
                   fontSize: 12,
@@ -301,7 +311,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
   Widget _buildScrollMode(ReaderPalette p) {
     final parts = _activeParts;
     final melody = context.read<AppState>().book.melody[_song.id];
-    return ListView(
+    _syncScrollKeys(parts.length);
+    final Widget list = ListView(
+      key: _scrollViewKey,
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
       children: [
@@ -311,7 +323,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
             child: MusicStaff(notes: melody),
           ),
         ],
-        for (final part in parts) _buildScrollPart(p, part),
+        for (int i = 0; i < parts.length; i++)
+          KeyedSubtree(
+              key: _scrollPartKeys[i], child: _buildScrollPart(p, parts[i])),
         if (_song.scripture != null)
           Padding(
             padding: const EdgeInsets.only(top: 12),
@@ -330,6 +344,61 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
       ],
     );
+
+    // Only a leader needs the scroll position tracked.
+    if (!context.read<LiveSessionController>().isLeader) return list;
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) {
+        _updateScrollIndex();
+        return false;
+      },
+      child: list,
+    );
+  }
+
+  void _syncScrollKeys(int count) {
+    while (_scrollPartKeys.length < count) {
+      _scrollPartKeys.add(GlobalKey());
+    }
+    if (_scrollPartKeys.length > count) {
+      _scrollPartKeys.removeRange(count, _scrollPartKeys.length);
+    }
+  }
+
+  /// The part a reader is actually looking at: whichever fills most of the
+  /// visible area. Taking "the first part crossing a line near the top" reads
+  /// well mid-song but sticks at the end, where the closing verses can never
+  /// reach that line and a chorus peeking in above keeps winning.
+  ///
+  /// Publishes only on a change, which also keeps scrolling from flooding the
+  /// transport.
+  void _updateScrollIndex() {
+    if (!mounted) return;
+    final RenderObject? viewportRo =
+        _scrollViewKey.currentContext?.findRenderObject();
+    if (viewportRo is! RenderBox) return;
+    final double viewTop = viewportRo.localToGlobal(Offset.zero).dy;
+    final double viewBottom = viewTop + viewportRo.size.height;
+
+    int best = _scrollIdx;
+    double bestVisible = 0;
+    for (int i = 0; i < _scrollPartKeys.length; i++) {
+      final BuildContext? ctx = _scrollPartKeys[i].currentContext;
+      if (ctx == null) continue; // scrolled out of view and disposed
+      final RenderObject? ro = ctx.findRenderObject();
+      if (ro is! RenderBox) continue;
+      final double top = ro.localToGlobal(Offset.zero).dy;
+      final double bottom = top + ro.size.height;
+      final double visible = math.min(bottom, viewBottom) - math.max(top, viewTop);
+      if (visible > bestVisible) {
+        bestVisible = visible;
+        best = i;
+      }
+    }
+    if (bestVisible > 0 && best != _scrollIdx) {
+      _scrollIdx = best;
+      _publishLive();
+    }
   }
 
   Widget _buildScrollPart(ReaderPalette p, SongPart part) {

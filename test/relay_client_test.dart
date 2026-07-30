@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -93,11 +95,18 @@ void main() {
         workingDirectory: 'relay',
         environment: {'PORT': '8791'},
       );
-      // Wait for the listening line before connecting.
-      await relay.stdout
-          .transform(const SystemEncoding().decoder)
-          .firstWhere((line) => line.contains('listening'))
-          .timeout(const Duration(seconds: 40));
+      // Keep draining stdout for the whole run. Stopping after the first
+      // matching line (firstWhere) cancels the subscription, and the relay
+      // then dies on its next write once the pipe has nobody reading it.
+      final Completer<void> ready = Completer<void>();
+      relay.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((String line) {
+        if (!ready.isCompleted && line.contains('listening')) ready.complete();
+      });
+      relay.stderr.drain<void>();
+      await ready.future.timeout(const Duration(seconds: 40));
       base = 'ws://127.0.0.1:8791';
     });
 
