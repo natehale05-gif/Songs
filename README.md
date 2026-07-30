@@ -53,8 +53,11 @@ The app checks for a newer version on launch and shows a slim bar offering it.
 Dismissing hides that version until a later one ships, and a failed check is
 silent — this app works offline, so it never treats "no network" as an error.
 
-- **Web** — updates itself. The service worker fetches the new build in the
-  background; the bar just offers to reload so you get it immediately.
+- **Web** — the bar compares the deployed build against the running one and
+  offers a reload. Flutter no longer ships a caching service worker (the one
+  it generates now unregisters itself), so a reload really does fetch the new
+  build. A browser holding an older cached copy may need one hard refresh
+  (Ctrl/Cmd+Shift+R) to pick this up the first time.
 - **Windows, macOS, Linux, Android** — the bar links straight to the new
   download for that platform. Installing over the top keeps your favourites
   and set list, since those live outside the app bundle.
