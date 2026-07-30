@@ -253,7 +253,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _searchFilterBar(AppState state, AppPalette p) {
     return FrostedBar(
-      color: p.surface.withValues(alpha: 0.72),
+      // Page colour rather than the white surface: this bar is pinned across
+      // the full width, so a lighter fill read as a white block sitting on
+      // top of the app. It still needs to be opaque enough to hide the list
+      // scrolling underneath, and the hairline keeps the edge legible.
+      color: p.bg.withValues(alpha: 0.92),
       border: Border(bottom: BorderSide(color: p.separator, width: 0.5)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
