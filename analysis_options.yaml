@@ -9,6 +9,14 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # relay/ is a separate Dart package with its own pubspec and dependencies.
+    # Analysing it from here reports every test helper as undefined unless its
+    # deps happen to be fetched, which they are not on a clean checkout. It has
+    # its own analyze and test job in .github/workflows/relay-image.yml.
+    - relay/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
