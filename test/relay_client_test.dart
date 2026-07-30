@@ -88,25 +88,46 @@ void main() {
     late String base;
 
     setUpAll(() async {
+      // relay/ is its own package. Resolve its dependencies explicitly:
+      // `dart run` would do it implicitly, but on a clean checkout that
+      // download runs inside — and can outlast — the readiness wait below.
+      final ProcessResult pub = await Process.run(
+        'dart',
+        <String>['pub', 'get'],
+        workingDirectory: 'relay',
+      );
+      if (pub.exitCode != 0) {
+        fail('relay `dart pub get` failed:\n${pub.stdout}\n${pub.stderr}');
+      }
+
       // Run the actual relay so this exercises the wire protocol, not a mock.
       relay = await Process.start(
         'dart',
-        ['run', 'bin/server.dart'],
+        <String>['run', 'bin/server.dart'],
         workingDirectory: 'relay',
-        environment: {'PORT': '8791'},
+        environment: <String, String>{'PORT': '8791'},
       );
+
       // Keep draining stdout for the whole run. Stopping after the first
       // matching line (firstWhere) cancels the subscription, and the relay
       // then dies on its next write once the pipe has nobody reading it.
       final Completer<void> ready = Completer<void>();
+      final StringBuffer output = StringBuffer();
       relay.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((String line) {
+        output.writeln(line);
         if (!ready.isCompleted && line.contains('listening')) ready.complete();
       });
-      relay.stderr.drain<void>();
-      await ready.future.timeout(const Duration(seconds: 40));
+      relay.stderr.transform(utf8.decoder).listen(output.write);
+
+      await ready.future.timeout(
+        const Duration(seconds: 60),
+        // A bare TimeoutException says nothing about why; include whatever the
+        // relay managed to print.
+        onTimeout: () => throw StateError('relay never started:\n$output'),
+      );
       base = 'ws://127.0.0.1:8791';
     });
 
