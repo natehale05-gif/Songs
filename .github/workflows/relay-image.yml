@@ -1,0 +1,72 @@
+name: Relay image
+
+# Tests the relay and publishes its container image to GitHub Container
+# Registry, so deploying is "point a host at this image" rather than "build it
+# yourself somewhere".
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'relay/**'
+      - '.github/workflows/relay-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+        working-directory: relay
+      - run: dart analyze
+        working-directory: relay
+      - run: dart test
+        working-directory: relay
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/songs-relay
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: relay
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # A pushed image that cannot start is worse than no image, so prove it
+      # boots and answers before calling the run green.
+      - name: Smoke-test the published image
+        run: |
+          image=$(echo "${{ steps.meta.outputs.tags }}" | head -1)
+          docker run -d --name relay -p 8080:8080 "$image"
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8080/health; then
+              echo; echo "relay image healthy"; docker rm -f relay; exit 0
+            fi
+            sleep 1
+          done
+          echo "relay image never became healthy"; docker logs relay; exit 1
