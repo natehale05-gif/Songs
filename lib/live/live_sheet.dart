@@ -137,7 +137,39 @@ class _LiveSheetState extends State<_LiveSheet> {
         _secondaryButton('Join a group',
             icon: Icons.group_add_outlined,
             onTap: () => setState(() => _mode = _Mode.join)),
+        if (live.startError != null) ...[
+          const SizedBox(height: 12),
+          _errorNote(live.startError!),
+        ],
       ],
+    );
+  }
+
+  /// Leading can fail before there is any session screen to report it on —
+  /// the relay may be unreachable, or not configured at all. Without this the
+  /// button simply appeared to do nothing.
+  Widget _errorNote(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF3B30).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, size: 17, color: Color(0xFFFF3B30)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                  color: p.label2, fontSize: 13, height: 1.35),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -223,13 +255,24 @@ class _LiveSheetState extends State<_LiveSheet> {
         Center(child: Text('JOIN CODE', style: _labelStyle())),
         const SizedBox(height: 4),
         Center(
-          child: SelectableText(
-            conn?.code ?? '------',
-            style: TextStyle(
-              color: p.label,
-              fontSize: 34,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 6,
+          // SelectableText keeps the code copyable, but it publishes no label
+          // to the accessibility tree — so the one string a leader has to read
+          // out was the one string a screen reader could not see. Spell it out
+          // character by character; read as a word it comes out as noise.
+          child: Semantics(
+            container: true,
+            label: conn == null
+                ? 'Join code not ready yet'
+                : 'Join code ${conn.code.split('').join(' ')}',
+            excludeSemantics: true,
+            child: SelectableText(
+              conn?.code ?? '------',
+              style: TextStyle(
+                color: p.label,
+                fontSize: 34,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 6,
+              ),
             ),
           ),
         ),

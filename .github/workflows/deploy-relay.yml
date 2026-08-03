@@ -1,0 +1,117 @@
+name: Deploy relay
+
+# Stands up the server that carries "Online" small-group sessions.
+#
+# Online mode needs a machine both the leader and the members can dial out to
+# — phones on cellular sit behind carrier NAT, so they cannot reach each other
+# directly. This workflow deploys that machine from GitHub's runners, so the
+# only thing needed locally is a Fly account and one token.
+#
+# Setup, once:
+#   1. Sign up at https://fly.io and install flyctl (or use the web console).
+#   2. flyctl tokens create deploy --name songs-relay
+#   3. Paste it as a repository secret named FLY_API_TOKEN
+#      (Settings -> Secrets and variables -> Actions -> Secrets).
+#   4. Run this workflow. It prints the RELAY_URL to set afterwards.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Fly app name (must be globally unique)'
+        required: true
+        default: 'songs-relay'
+      org:
+        description: 'Fly organisation'
+        required: true
+        default: 'personal'
+      region:
+        description: 'Primary region (https://fly.io/docs/reference/regions/)'
+        required: true
+        default: 'iad'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the token exists
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::FLY_API_TOKEN is not set. Create one with"
+            echo "::error::  flyctl tokens create deploy --name songs-relay"
+            echo "::error::and add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # Deploy refuses to create the app for you when there is no terminal to
+      # prompt at, so make sure it exists first. Re-running is fine.
+      - name: Ensure the app exists
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          app="${{ inputs.app }}"
+          # `status` rather than parsing `apps list --json`: the JSON field
+          # names have changed between flyctl releases, an exit code has not.
+          if flyctl status --app "$app" >/dev/null 2>&1; then
+            echo "app $app already exists"
+          else
+            flyctl apps create "$app" --org "${{ inputs.org }}"
+          fi
+
+      # Built on Fly's builders rather than here: it keeps this job small, and
+      # it sidesteps the GHCR image being private by default, which is the step
+      # that most often stalls a first deploy.
+      - name: Deploy
+        working-directory: relay
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy \
+            --app "${{ inputs.app }}" \
+            --primary-region "${{ inputs.region }}" \
+            --remote-only \
+            --yes
+
+      # A green deploy is not the same as a relay that answers, and the
+      # difference only shows up when somebody is trying to lead a group.
+      - name: Verify it answers
+        run: |
+          url="https://${{ inputs.app }}.fly.dev/health"
+          for i in $(seq 1 20); do
+            body=$(curl -fsS --max-time 10 "$url" 2>/dev/null || true)
+            case "$body" in
+              ok\ rooms=*) echo "healthy: $body"; exit 0;;
+            esac
+            echo "waiting for $url ($i/20)"
+            sleep 10
+          done
+          echo "::error::$url never returned the expected health response."
+          exit 1
+
+      - name: Explain what to do next
+        run: |
+          relay="wss://${{ inputs.app }}.fly.dev"
+          {
+            echo "## Relay deployed"
+            echo
+            echo '`'"$relay"'`'
+            echo
+            echo "### One step left"
+            echo
+            echo "Add a repository **variable** named \`RELAY_URL\` with that"
+            echo "value, under *Settings -> Secrets and variables -> Actions ->"
+            echo "Variables*. It is a public URL, not a secret."
+            echo
+            echo "Then re-run **Deploy web to GitHub Pages** and **Build apps**."
+            echo "Until a build carries \`RELAY_URL\`, the app still shows Online"
+            echo "as unavailable — the relay being up is not enough on its own."
+          } >> "$GITHUB_STEP_SUMMARY"

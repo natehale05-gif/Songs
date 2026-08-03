@@ -161,12 +161,16 @@ behind carrier NAT, so there is no address to dial and no port to open, and a
 directly-hosted session cannot be reached. The relay matches them by join code
 and forwards the current verse. It works identically on web and native.
 
-Online needs a relay you run — a single small container. CI already builds and
-publishes it to `ghcr.io/natehale05-gif/songs-relay:latest`, so deploying is
-one command; see [`relay/README.md`](relay/README.md). Then set a repository
-variable `RELAY_URL` (e.g. `wss://songs-relay.fly.dev`) and both workflows
-compile it in. Until then the app builds and runs exactly as before, with
-Online shown as unavailable rather than failing when tapped.
+Online needs a relay you run — a single small container. The **Deploy relay**
+workflow stands one up on Fly from the Actions tab, so the only local step is
+creating a token; see [`relay/README.md`](relay/README.md). Then set a
+repository variable `RELAY_URL` (e.g. `wss://songs-relay.fly.dev`) and re-run
+**Deploy web to GitHub Pages** and **Build apps** so the value is compiled in.
+
+Both steps are needed. A relay that is running changes nothing on its own, and
+a build without `RELAY_URL` shows Online as unavailable rather than failing
+when tapped. Everything else — the whole hymnal, and Same WiFi sessions — works
+exactly as before either way.
 
 Traffic through the relay is `wss://`-encrypted in transit but not end to end:
 the relay operator can see which verse a group is on, and anyone who learns a

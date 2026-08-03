@@ -12,6 +12,28 @@ import 'relay_config.dart';
 
 enum LiveRole { none, leader, member }
 
+/// Why this relay URL cannot work where the app is currently running, or null
+/// if it can.
+///
+/// Exists because the failure it catches is otherwise invisible until someone
+/// is standing in front of a group: a browser silently refuses a `ws://`
+/// socket opened from an `https://` page, and the app would only ever see a
+/// generic connection error.
+///
+/// Lives here rather than in relay_config.dart so that file stays free of
+/// Flutter imports and can still be used from the plain Dart VM.
+String? relayUrlProblem([String base = kRelayUrl]) {
+  if (base.trim().isEmpty) return null;
+  if (!kIsWeb) return null;
+  if (Uri.base.scheme != 'https') return null;
+  if (relaySocketUri(code: 'AAAAAA', asLeader: false, base: base).scheme ==
+      'wss') {
+    return null;
+  }
+  return 'This build points at an insecure relay (ws://), and browsers block '
+      'that from an https page. Rebuild with a wss:// RELAY_URL.';
+}
+
 /// App-wide coordinator for the live small-group feature. Holds the current
 /// role (leader/member), owns the transport, tracks the shared presentation
 /// state, and exposes everything the UI needs.
@@ -32,6 +54,7 @@ class LiveSessionController extends ChangeNotifier {
   StreamSubscription<LiveSnapshot>? _snapSub;
   LiveClientStatus _memberStatus = LiveClientStatus.idle;
   String? _memberMessage;
+  String? _startError;
   LiveSnapshot? _memberSnapshot;
 
   // ── Shared getters ──
@@ -59,6 +82,12 @@ class LiveSessionController extends ChangeNotifier {
   // ── Member getters ──
   LiveClientStatus get memberStatus => _memberStatus;
   String? get memberMessage => _memberMessage;
+
+  /// Why the last attempt to start leading failed, for the sheet to show.
+  /// Leader failures used to be written to [memberMessage], which only the
+  /// member screen renders — so tapping "Lead a group" with the relay
+  /// unreachable did nothing at all, with no explanation anywhere.
+  String? get startError => _startError;
   LiveSnapshot? get memberSnapshot => _memberSnapshot;
 
   // ─────────────────────────── Leader ───────────────────────────
@@ -70,9 +99,17 @@ class LiveSessionController extends ChangeNotifier {
     if (isActive || _busy) return;
     // Asking for online without a relay configured would fail obscurely at
     // connect time; refuse up front so the UI can explain why.
+    _startError = null;
     if (mode == LiveMode.online && !relayConfigured) {
-      _memberMessage = 'This build has no relay configured, so online '
+      _startError = 'This build has no relay configured, so online '
           'sessions are unavailable. See relay/README.md.';
+      notifyListeners();
+      return;
+    }
+    final String? relayProblem =
+        mode == LiveMode.online ? relayUrlProblem() : null;
+    if (relayProblem != null) {
+      _startError = relayProblem;
       notifyListeners();
       return;
     }
@@ -93,7 +130,7 @@ class LiveSessionController extends ChangeNotifier {
     } catch (error) {
       _host = null;
       _busy = false;
-      _memberMessage = mode == LiveMode.online
+      _startError = mode == LiveMode.online
           ? 'Could not reach the relay. Check your internet connection.'
           : 'Could not start the session.';
       notifyListeners();
@@ -188,6 +225,13 @@ class LiveSessionController extends ChangeNotifier {
         _memberStatus = LiveClientStatus.error;
         _memberMessage = 'This build has no relay configured, so online '
             'sessions are unavailable. See relay/README.md.';
+        notifyListeners();
+        return;
+      }
+      final String? problem = relayUrlProblem();
+      if (problem != null) {
+        _memberStatus = LiveClientStatus.error;
+        _memberMessage = problem;
         notifyListeners();
         return;
       }

@@ -21,11 +21,23 @@ Uri relaySocketUri({
   String? token,
   String base = kRelayUrl,
 }) {
-  final String trimmed = base.trim().replaceAll(RegExp(r'/+$'), '');
+  String trimmed = base.trim().replaceAll(RegExp(r'/+$'), '');
+
+  // Tolerate a base that already names the endpoint, so that pasting the URL
+  // the app connects to does not produce /live/live.
+  trimmed = trimmed.replaceFirst(RegExp(r'/live$'), '');
+
   // Accept http(s) for convenience and map it to the websocket scheme.
-  final String normalized = trimmed
+  String normalized = trimmed
       .replaceFirst(RegExp(r'^https://'), 'wss://')
       .replaceFirst(RegExp(r'^http://'), 'ws://');
+
+  // `fly status` and the Render dashboard both print a bare hostname, which is
+  // what anyone would paste into RELAY_URL. Without a scheme this parses as a
+  // *relative* URI and the socket fails at connect time with something that
+  // says nothing about the cause, so assume the secure scheme.
+  if (!normalized.contains('://')) normalized = 'wss://$normalized';
+
   return Uri.parse('$normalized/live').replace(queryParameters: <String, String>{
     'code': code,
     'role': asLeader ? 'leader' : 'member',

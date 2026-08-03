@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:songs_of_the_church/live/client.dart';
 import 'package:songs_of_the_church/live/connection_info.dart';
+import 'package:songs_of_the_church/live/live_controller.dart';
 import 'package:songs_of_the_church/live/live_snapshot.dart';
 import 'package:songs_of_the_church/live/relay_config.dart';
 import 'package:songs_of_the_church/live/relay_transport.dart';
@@ -46,6 +47,32 @@ void main() {
       final u = relaySocketUri(
           code: 'A1B2C3', asLeader: false, base: 'wss://r.test/');
       expect(u.path, '/live');
+    });
+
+    test('a bare hostname is assumed to be secure', () {
+      // What `fly status` and the Render dashboard both print, and therefore
+      // what ends up pasted into RELAY_URL. Without a scheme this parses as a
+      // relative URI and fails at connect time saying nothing useful.
+      final u = relaySocketUri(
+          code: 'A1B2C3', asLeader: false, base: 'songs-relay.fly.dev');
+      expect(u.scheme, 'wss');
+      expect(u.host, 'songs-relay.fly.dev');
+      expect(u.path, '/live');
+    });
+
+    test('a base that already names the endpoint is not doubled', () {
+      final u = relaySocketUri(
+          code: 'A1B2C3', asLeader: false, base: 'wss://r.test/live');
+      expect(u.path, '/live');
+    });
+  });
+
+  group('relayUrlProblem', () {
+    test('is silent off the web, where mixed content does not apply', () {
+      // These tests run in the Dart VM, so this is the native answer.
+      expect(relayUrlProblem('ws://192.168.1.5:8080'), isNull);
+      expect(relayUrlProblem('wss://relay.example'), isNull);
+      expect(relayUrlProblem(''), isNull);
     });
   });
 

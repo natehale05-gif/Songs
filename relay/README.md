@@ -54,7 +54,26 @@ so you can usually skip building entirely. Packages pushed to GHCR start out
 **private** — if your host pulls anonymously, set the package to public under
 *Packages → songs-relay → Package settings*, or give the host a pull secret.
 
-### Fly.io
+### From GitHub Actions (least setup)
+
+The **Deploy relay** workflow does the whole thing on GitHub's runners, so you
+need no Docker, no local build, and no `flyctl` beyond making a token:
+
+1. Sign up at [fly.io](https://fly.io).
+2. `flyctl tokens create deploy --name songs-relay`
+3. Add it as a repository **secret** named `FLY_API_TOKEN`.
+4. Run **Deploy relay** from the Actions tab.
+
+It creates the app if it does not exist, builds on Fly's builders (so the
+private-by-default GHCR image never comes into it), waits for `/health` to
+answer, and prints the `RELAY_URL` to set. A relay that is up is not enough on
+its own — the URL still has to reach a build; see *Point the app at it* below.
+
+Fly no longer has a free allowance, and `min_machines_running = 1` deliberately
+keeps one machine warm, so expect a couple of dollars a month for the smallest
+VM. Letting it scale to zero would drop a live session mid-song.
+
+### Fly.io, by hand
 
 Deploy the prebuilt image:
 
@@ -103,7 +122,15 @@ flutter build apk --release --dart-define=RELAY_URL=wss://your-relay.fly.dev
 
 In CI, set a repository **variable** named `RELAY_URL` (Settings → Secrets and
 variables → Actions → Variables). It is a public URL, not a secret. Both
-workflows pass it through automatically.
+workflows pass it through automatically. Setting the variable does not change
+anything already published — re-run **Deploy web to GitHub Pages** and **Build
+apps** so the value is compiled in.
+
+`https://` and a bare hostname (which is what `fly status` prints) are both
+accepted and mapped to `wss://`. Do not use `ws://` for anything but a local
+test: the web build is served over HTTPS, and browsers block an insecure
+socket opened from a secure page. The app checks for this and says so rather
+than failing with a bare connection error.
 
 Without `RELAY_URL` the app still builds and the same-WiFi mode works exactly
 as before — the Online option is simply shown as unavailable, rather than
