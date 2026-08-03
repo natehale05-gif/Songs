@@ -190,10 +190,16 @@ artefact from a re-run — trigger a new run instead.
 | Question | Answer |
 | --- | --- |
 | Does your app collect or share any of the required user data types? | **No** |
-| Is all data encrypted in transit? | Yes (relay traffic is `wss://`) |
-| Do you provide a way for users to request data deletion? | Not applicable — no data is held off-device; uninstalling removes everything |
 | Data used for advertising or tracking? | No |
 | Third-party SDKs collecting data? | None |
+
+Answering "no" to the first question retires the rest of the form, including
+the encryption-in-transit and deletion-request questions. That is just as well,
+because the honest answer to "is all data encrypted in transit" is *not* a flat
+yes: an Online session runs over `wss://`, but a **Same WiFi** session is plain
+`ws://` between two devices on the same local network, where there is no
+certificate to validate. If a future change makes the form ask, say so rather
+than ticking the box.
 
 Same caveat as Apple's form: this answer describes the relay as it is written
 in `relay/`. It relays in real time and retains nothing.

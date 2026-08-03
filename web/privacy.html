@@ -128,7 +128,11 @@
   <p>The leader's device hosts the session directly on the local network and
   answers join requests broadcast over it. No internet connection is used and no
   data reaches us or any third party — the traffic never leaves the network you
-  are already on. On iOS this is why the app asks for local network access.</p>
+  are already on. On iOS this is why the app asks for local network access.
+  Being device-to-device on a private network, that connection is not encrypted:
+  there is no certificate to check when the other end is simply another phone.
+  Anyone already on the same network could in principle see which verse a group
+  is on, which is the same thing they could see by looking at the screen.</p>
 
   <h3>Online</h3>
   <p>Because phones on cellular sit behind carrier NAT, a group spread across
