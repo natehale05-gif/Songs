@@ -4,8 +4,10 @@
 // future. If not, the values below would default to using the project name when this becomes a
 // 'flutter create' template.
 
-// The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = songs_of_the_church
+// The application's name. By default this is also the title of the Flutter
+// window, the name in the menu bar, and the .app's filename in Applications —
+// so it has to be the real name, not the Dart package name the template used.
+PRODUCT_NAME = Songs of the Church
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = app.songsofthechurch.songsOfTheChurch
