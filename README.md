@@ -94,6 +94,17 @@ Until those exist the workflow still builds an APK, but signs it with the
 throwaway debug key: it installs fine, yet a later release won't upgrade it in
 place. **Back the keystore up** — losing it means the same thing permanently.
 
+### Publishing to the App Store and Google Play
+
+The repository already carries what the stores check — a published
+[privacy policy](web/privacy.html), Apple's `PrivacyInfo.xcprivacy`, the export
+compliance answer, and a Play-format `.aab` alongside the APK. What is left is
+developer accounts, signing identities and the store questionnaires, all of
+which are walked through in
+[`docs/store-submission.md`](docs/store-submission.md) — including the one
+thing worth settling before spending any money, which is confirming you have
+the right to distribute each song's text.
+
 ## Features
 
 - **715 songs** across English, Spanish, Hebrew, Greek, Albanian and Chinese,
