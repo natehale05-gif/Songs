@@ -73,8 +73,10 @@ Handler buildHandler(RoomRegistry registry) {
       }
       final Room room = outcome.room!;
       // Operational visibility: without this there is no way to see whether a
-      // session ever reached the relay.
-      stdout.writeln('$role joined ${room.code} '
+      // session ever reached the relay. Deliberately without the join code —
+      // anyone holding a code can follow that session, so logging it would turn
+      // the server's log into a list of live sessions an operator could join.
+      stdout.writeln('$role joined a session '
           '(members=${room.memberCount}, rooms=${registry.roomCount})');
 
       channel.stream.listen(

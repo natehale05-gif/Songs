@@ -114,7 +114,8 @@ place. **Back the keystore up** — losing it means the same thing permanently.
   or QR. The leader hosts the session and, as they move through verses in the
   reader or set-list presenter, every member's screen mirrors the current verse
   in real time. Works **offline** — see below.
-- **Theming** — iOS-style light/dark palettes, persisted between launches.
+- **Theming** — iOS-style light/dark palettes that follow the device's system
+  appearance and switch with it while the app is open.
 
 ## Small group / live sessions
 

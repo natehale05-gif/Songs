@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Apple requires this manifest for App Store submission. It must agree
+	     with the answers given in App Store Connect and with
+	     https://natehale05-gif.github.io/Songs/privacy.html. -->
+
+	<!-- No advertising, attribution or analytics SDKs are linked, and nothing
+	     the app sends is combined with data from other apps or websites. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- Nothing is transmitted off the device and retained. A live "Online"
+	     small-group session forwards the current verse through a relay, but the
+	     relay holds it only in memory for as long as the session is running and
+	     writes nothing to disk, so it falls under Apple's real-time-servicing
+	     exclusion rather than counting as collection. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!-- shared_preferences stores favourites, per-song open counts and
+			     the dismissed-update version in NSUserDefaults. Read back only
+			     by this app. -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Reached through the Flutter engine and audioplayers when reading
+			     bundled assets and the app's own container. -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

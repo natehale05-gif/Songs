@@ -10,6 +10,7 @@ import '../models.dart';
 import '../theme.dart';
 import '../ui_kit.dart';
 import '../update/update_banner.dart';
+import '../widgets/about_sheet.dart';
 import 'reader_screen.dart';
 import 'setlist_present_screen.dart';
 
@@ -223,19 +224,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
           children: [
             Flexible(
-              child: Text(
-                'Songs of the Church',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: kDisplaySerif,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: p.label,
-                  letterSpacing: -0.4,
+              // Shrink to fit rather than ellipsize. With the count and the
+              // info button sharing the row there is not 32pt of room for the
+              // full name on a narrow phone, and "Songs of the Ch…" is a worse
+              // outcome than a slightly smaller title.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Songs of the Church',
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontFamily: kDisplaySerif,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: p.label,
+                    letterSpacing: -0.4,
+                  ),
                 ),
               ),
             ),
@@ -244,6 +251,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
               '${state.book.songs.length} songs',
               style: TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w600, color: p.label3),
+            ),
+            const SizedBox(width: 4),
+            Pressable(
+              onTap: () {
+                Haptics.selection();
+                showAboutSheet(context, p);
+              },
+              child: Padding(
+                // Padding rather than a bare icon: the glyph alone is well
+                // under the 44pt minimum touch target.
+                padding: const EdgeInsets.all(6),
+                child: Icon(Icons.info_outline_rounded,
+                    size: 20, color: p.label3),
+              ),
             ),
           ],
         ),

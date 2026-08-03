@@ -4,6 +4,12 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- The app's only encryption is HTTPS/WSS through the OS's own stack,
+	     which is exempt under Category 5 Part 2 note 4 / EAR 740.17(b). Saying
+	     so here answers App Store Connect's export-compliance question once,
+	     instead of on every single upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Songs of the Church uses the camera to scan a leader's small-group join QR code.</string>
 	<key>NSLocalNetworkUsageDescription</key>
@@ -11,15 +17,18 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Songs Of The Church</string>
+	<string>Songs of the Church</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<!-- Short form, shown where iOS has no room for CFBundleDisplayName (the
+	     Home Screen label under the icon). The Flutter template leaves the Dart
+	     package name here, which is not a name to show anyone. -->
 	<key>CFBundleName</key>
-	<string>songs_of_the_church</string>
+	<string>Songs</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

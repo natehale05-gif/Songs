@@ -32,6 +32,35 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  # Nothing publishable comes out of this — App Store builds have to be
+  # archived from Xcode with a paid signing identity. It exists because the iOS
+  # project is the one platform nobody here can compile by accident: an edit to
+  # Info.plist or project.pbxproj would otherwise only surface at submission.
+  ios-project:
+    needs: verify
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+
+      # A privacy manifest that is referenced by the project but not copied
+      # into the bundle fails App Store review, and the build itself stays
+      # green either way — so assert on the built product, not the source.
+      - name: Check the privacy manifest was bundled
+        run: |
+          app=$(find build/ios/iphoneos -maxdepth 1 -name '*.app' | head -1)
+          if [ ! -f "$app/PrivacyInfo.xcprivacy" ]; then
+            echo "PrivacyInfo.xcprivacy is missing from $app"
+            echo "Add it to the Runner target's Copy Bundle Resources phase."
+            exit 1
+          fi
+          plutil -lint "$app/PrivacyInfo.xcprivacy"
+
   build:
     needs: verify
     strategy:
@@ -131,6 +160,25 @@ jobs:
         if: matrix.platform == 'apk'
         run: cp build/app/outputs/flutter-apk/app-release.apk dist/songs-of-the-church.apk
 
+      # Google Play only accepts an App Bundle, and it is not sideloadable, so
+      # this is published alongside the APK rather than instead of it: the APK
+      # stays the direct download, the .aab is what gets uploaded to Play.
+      - name: Build Android App Bundle
+        if: matrix.platform == 'apk'
+        run: |
+          flutter build appbundle --release \
+            --build-name=${{ steps.v.outputs.number }} \
+            --build-number=${{ github.run_number }} \
+            --dart-define=APP_VERSION=${{ steps.v.outputs.number }} \
+            --dart-define=APP_BUILD=${{ github.run_number }} \
+            --dart-define=RELAY_URL=${{ vars.RELAY_URL }}
+          cp build/app/outputs/bundle/release/app-release.aab \
+            dist/songs-of-the-church-play-upload.aab
+          if [ ! -f android/key.properties ]; then
+            echo "::warning::This .aab is debug-signed and Play will reject it."
+            echo "::warning::Set the ANDROID_KEYSTORE_* secrets first — see README."
+          fi
+
       # --- Linux: a single double-clickable AppImage, plus a plain tarball ---
       - name: Package Linux
         if: matrix.platform == 'linux'
@@ -216,6 +264,9 @@ jobs:
 
             Prefer no installer? `…-windows-x64.zip`, `…-macos.zip` and
             `…-linux-x64.tar.gz` are the same app as plain archives.
+
+            `songs-of-the-church-play-upload.aab` is only for uploading to the
+            Google Play Console — phones cannot install it. Use the `.apk`.
 
             **First launch.** These builds aren't code-signed, so each OS asks
             once whether you trust the app:
