@@ -19,12 +19,37 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A cross-platform hymnal and worship set-list app.">
-  <meta name="theme-color" content="#1C3975">
+
+  <!-- Tints the browser chrome to match the app rather than leaving it white.
+       Two entries because this cannot be changed at runtime; the app follows
+       the system light/dark setting, so these track the same signal. -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F2F7">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <!-- "default" lets the status bar take the page background below, which is
+       what makes it follow dark mode. "black" pinned it to one colour. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Songs">
+
+  <style>
+    /* Flutter paints into a canvas that does not cover the status bar or the
+       area behind browser chrome. Without a background here those regions fall
+       back to the browser default — white — which is invisible in light mode
+       but shows as a white block against the black app in dark mode.
+       These match AppPalette.light.bg and AppPalette.dark.bg in lib/theme.dart. */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #F2F2F7;
+      overscroll-behavior: none;
+    }
+    @media (prefers-color-scheme: dark) {
+      html, body { background-color: #000000; }
+    }
+  </style>
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
