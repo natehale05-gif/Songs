@@ -5,6 +5,8 @@
 /// with no error, which is a miserable thing to debug.
 library;
 
+import 'package:flutter/foundation.dart';
+
 /// The single paid tier. One product, one price, renewed yearly.
 const String kPlusProductId = 'app.songsofthechurch.plus.yearly';
 
@@ -15,6 +17,39 @@ const String kPlusFallbackPrice = r'$12';
 
 /// What the subscription is called in the interface.
 const String kPlusName = 'Songs of the Church Plus';
+
+/// RevenueCat-hosted purchase page. Opened only where [purchaseAllowedHere]
+/// says it may be.
+const String kPurchaseUrl = String.fromEnvironment('PURCHASE_URL');
+
+/// Whether this build may show a purchase button, or even mention where to
+/// buy.
+///
+/// False on iOS and Android, and that is not a limitation of the code. App
+/// Store guideline 3.1.1 requires digital features sold inside an iOS app to
+/// go through In-App Purchase, and Google Play's payments policy says the
+/// same. Selling only on the web is allowed for a genuine multiplatform
+/// service under 3.1.3(b) — but only if the mobile app neither sells nor
+/// *steers*, so it must not link to the purchase page or tell anyone it
+/// exists. On those platforms the paywall is a sign-in prompt and nothing
+/// more.
+///
+/// A mobile browser is not the App Store, so the web build sells normally
+/// even when it is running on an iPhone — hence the [kIsWeb] check first.
+bool get purchaseAllowedHere {
+  if (kPurchaseUrl.trim().isEmpty) return false;
+  if (kIsWeb) return true;
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.iOS:
+    case TargetPlatform.android:
+      return false;
+    case TargetPlatform.macOS:
+    case TargetPlatform.windows:
+    case TargetPlatform.linux:
+    case TargetPlatform.fuchsia:
+      return true;
+  }
+}
 
 const String kTermsUrl = 'https://natehale05-gif.github.io/Songs/terms.html';
 const String kPrivacyUrl =

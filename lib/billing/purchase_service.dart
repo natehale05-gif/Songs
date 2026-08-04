@@ -1,60 +1,87 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'billing_config.dart';
 import 'entitlement.dart';
+import 'entitlement_controller.dart';
 
-/// Base URL of the service that holds accounts and entitlements, e.g.
-/// `https://billing.songsofthechurch.app`. Injected at build time:
+/// Reads the entitlement Supabase mirrors from RevenueCat.
 ///
-///   flutter build ... --dart-define=BILLING_URL=https://your-billing.example
-///
-/// Empty by default, and that is deliberate: with no billing service there is
-/// nothing that could verify a purchase, so the app must not pretend to sell
-/// anything. See [billingConfigured].
-const String kBillingApiUrl = String.fromEnvironment('BILLING_URL');
+/// The read is a single row protected by row level security, so a client can
+/// only ever see its own. Nothing here can *grant* an entitlement — only the
+/// webhook, running as the service role, writes that table.
+class SupabaseEntitlementSource implements EntitlementSource {
+  SupabaseEntitlementSource({SupabaseClient? client}) : _injected = client;
 
-/// Whether this build can sell and verify a subscription.
-///
-/// When false the paid features stay **unlocked**. A build that cannot check
-/// an entitlement must not lock people out on the strength of a paywall it
-/// has no way to honour — that would turn a missing config value into a
-/// broken app for everyone.
-bool get billingConfigured => kBillingApiUrl.trim().isNotEmpty;
+  final SupabaseClient? _injected;
+  SupabaseClient get _client => _injected ?? Supabase.instance.client;
 
-/// Buying and restoring, whichever store this platform uses.
-///
-/// Implementations differ per platform — StoreKit and Play Billing through
-/// `in_app_purchase`, Stripe Checkout on web and desktop — but the app only
-/// ever sees this.
-abstract class PurchaseService {
-  /// The offer to show, with the store's own localised price where possible.
-  Future<PlusOffer> loadOffer();
+  @override
+  Future<Entitlement> fetch() async {
+    final User? user = _client.auth.currentUser;
+    if (user == null) {
+      // Signed out is a definite answer, unlike a network failure: there is no
+      // account, so there is no entitlement.
+      return const Entitlement.none();
+    }
 
-  /// Runs the platform's purchase flow. Returns the resulting entitlement, or
-  /// null if the user cancelled.
-  ///
-  /// Should throw only when something actually went wrong; a cancelled
-  /// purchase is a normal outcome and not an error to report.
-  Future<Entitlement?> subscribe();
+    final Map<String, dynamic>? row = await _client
+        .from('entitlements')
+        .select('active, expires_at, source')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-  /// Re-checks for a subscription this account already has, after a reinstall
-  /// or on a second device. Returns null when there is nothing to restore.
-  Future<Entitlement?> restore();
+    if (row == null) return const Entitlement.none();
+
+    return Entitlement(
+      active: row['active'] == true,
+      expiresAt: DateTime.tryParse(row['expires_at']?.toString() ?? ''),
+      source: _sourceFrom(row['source']?.toString()),
+    );
+  }
+
+  static PurchaseSource? _sourceFrom(String? raw) {
+    switch (raw) {
+      case 'app_store':
+        return PurchaseSource.appStore;
+      case 'play_store':
+        return PurchaseSource.playStore;
+      case 'stripe':
+        return PurchaseSource.stripe;
+      default:
+        return null;
+    }
+  }
 }
 
-/// Stands in wherever billing has not been set up. Never sells anything.
+/// Sends someone to the hosted purchase page, where that is permitted.
 ///
-/// Reachable only through a bug, since [billingConfigured] is false in that
-/// situation and the gate lets everyone through without asking this.
-class UnconfiguredPurchaseService implements PurchaseService {
-  const UnconfiguredPurchaseService();
+/// There is no in-app purchase flow at all: subscriptions are sold on the web
+/// through RevenueCat, and the mobile builds deliberately cannot open this —
+/// see [purchaseAllowedHere] for why that is a store rule rather than an
+/// oversight.
+class PurchaseLauncher {
+  const PurchaseLauncher();
 
-  @override
-  Future<PlusOffer> loadOffer() async => const PlusOffer.fallback();
+  bool get canPurchaseHere => purchaseAllowedHere;
 
-  @override
-  Future<Entitlement?> subscribe() async =>
-      throw StateError('This build has no billing service configured.');
-
-  @override
-  Future<Entitlement?> restore() async =>
-      throw StateError('This build has no billing service configured.');
+  /// Opens the purchase page for [appUserId], so RevenueCat attributes the
+  /// subscription to the account that will later sign in on other devices.
+  ///
+  /// Returns false if it could not be opened, or if selling is not permitted
+  /// on this platform.
+  Future<bool> open(String appUserId) async {
+    if (!canPurchaseHere) return false;
+    final Uri base = Uri.parse(kPurchaseUrl);
+    final Uri url = base.replace(queryParameters: <String, String>{
+      ...base.queryParameters,
+      // RevenueCat Web Billing reads this and uses it as the App User ID.
+      'app_user_id': appUserId,
+    });
+    try {
+      return await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
+  }
 }

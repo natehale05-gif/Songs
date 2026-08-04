@@ -1,220 +1,194 @@
 # Setting up Songs of the Church Plus
 
-$12/year, sold on iOS, Android, web and desktop, with one purchase working
-everywhere. This is what has to exist outside the repository before any of it
-can take money, and none of it can be done from CI.
+$12/year, sold **on the web only**, through RevenueCat, with accounts in
+Supabase. One purchase works on every platform.
 
-Nothing in the app sells anything until `BILLING_URL` is set. Until then every
-feature stays unlocked for everyone, which is why the current build is safe to
-ship as-is.
-
----
-
-## 1. What $12 actually becomes
-
-Worth knowing before you price anything else around it.
-
-| | Apple / Google | Stripe (web, desktop) |
-| --- | --- | --- |
-| Store or processor cut | 15% under the small-business programmes | ~2.9% + $0.30 |
-| You receive | **$10.20** | **~$11.35** |
-
-Apple's 15% rate needs enrolment in the **App Store Small Business Program**;
-without it the rate is 30% and you net $8.40. Google's equivalent 15% rate on
-the first $1M applies automatically. Both are worth confirming rather than
-assuming.
-
-Against that, the running costs: the relay (~$2–3/month), the billing service
-below (similar), and a domain. At $12/year, roughly **six subscribers** cover
-the infrastructure. That is a low bar, but it is not zero, and it is the honest
-reason to think about whether this is worth the operational weight.
+Nothing in the app gates anything until `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+are compiled in. Until then every feature stays unlocked, which is why the
+current build is safe to ship as-is.
 
 ---
 
-## 2. The shape of it, and why
+## 1. The shape of it
 
 ```
-   iOS ──StoreKit──┐
-Android ─Play Bill─┤
-    Web ──Stripe───┼──▶  billing service  ──▶  GET /entitlement  ──▶  app
-Desktop ──Stripe───┘     (accounts, receipts)
+  browser ──▶ RevenueCat Web Billing (Stripe) ──▶ webhook ──┐
+                                                            ▼
+  any app ──▶ Supabase Auth (email code) ──▶ entitlements table (RLS)
+                                                            │
+                                          app reads its own row ◀┘
 ```
 
-The app never decides for itself whether someone has paid. It asks the billing
-service, caches the answer, and trusts that cache for up to 30 days offline.
-That last part is not a detail: this app's whole premise is working with no
-connection, and a subscriber in a building with no signal must not be asked to
-pay again.
+- **Accounts** are Supabase Auth, email one-time codes. No password to leak,
+  and no third-party social login — which also means Sign in with Apple is not
+  triggered, since that obligation attaches to social logins.
+- **Payment** is RevenueCat Web Billing, backed by Stripe. Nothing goes through
+  the App Store or Play.
+- **The Supabase user id is the RevenueCat App User ID.** That single decision
+  is what makes one purchase work everywhere: whichever device signs in,
+  RevenueCat is asked about the same subject.
+- **The app never asks RevenueCat directly.** A webhook mirrors entitlement
+  state into Postgres, and the app reads its own row over RLS. Startup does not
+  depend on a third party being up, and an entitlement check is one indexed row
+  read.
 
-**Why there is an account at all.** You asked for one purchase to work
-everywhere. Apple will not tell Google about a purchase, and neither will tell
-a browser. The only thing that can join them is an identity you own, so
-subscribing asks for an email address. The free app still asks for nothing.
+### What $12 becomes
 
-**What the service must never do** is trust the client. A receipt arrives from
-the app, but the service verifies it directly with Apple or Google before
-granting anything — an app can be modified, and "the app said so" is not
-evidence of payment.
-
----
-
-## 3. Apple
-
-### Create the product
-1. App Store Connect → your app → **Subscriptions** → create a subscription
-   group (e.g. "Songs of the Church Plus").
-2. Add a subscription with product ID **`app.songsofthechurch.plus.yearly`** —
-   this must match `kPlusProductId` in `lib/billing/billing_config.dart`
-   exactly. A mismatch shows up as an empty product list with no error, which
-   is a miserable thing to debug.
-3. Duration **1 year**, price tier closest to $12. Add a localised display name
-   and description; Apple rejects subscriptions with these missing.
-4. Upload a **review screenshot** of the paywall.
-
-### Agreements, tax and banking
-Under **Business** → *Agreements, Tax, and Banking*, accept the Paid
-Applications agreement and complete banking and tax. **Nothing sells until this
-is done and shows Active** — this is the single most common reason a
-subscription appears to exist but cannot be bought.
-
-### Server credentials
-For the billing service to verify receipts:
-- App Store Connect → Users and Access → **Integrations** → In-App Purchase →
-  generate a key. You get a `.p8` file (downloadable once), a **Key ID**, and
-  an **Issuer ID**.
-- Note your app's **bundle ID** (`app.songsofthechurch.songsOfTheChurch`).
-
-Use the **App Store Server API** and **App Store Server Notifications V2**.
-The old `verifyReceipt` endpoint is deprecated; do not build on it.
-
-Point Server Notifications V2 at `https://your-billing/webhooks/apple`. Without
-it, a cancellation or a failed renewal will not reach you until the app next
-asks — with the 30-day grace window, that can be weeks of access after someone
-stopped paying.
-
-### Testing
-Create **Sandbox testers** in Users and Access. Sandbox subscriptions renew on
-an accelerated clock (a year becomes an hour), which is the only practical way
-to test a renewal.
+Stripe takes ~2.9% + $0.30, RevenueCat is free below $2,500/month of tracked
+revenue. You keep about **$11.35** — versus $10.20 through the app stores.
+Against that: Supabase free tier, and the relay at ~$2–3/month.
 
 ---
 
-## 4. Google Play
+## 2. The rule that shapes the mobile apps
 
-1. Play Console → Monetise → **Subscriptions** → create one with product ID
-   **`app.songsofthechurch.plus.yearly`**, and a base plan with a **yearly**
-   billing period, auto-renewing.
-2. Set the price, and activate both the subscription and the base plan — a
-   subscription with an inactive base plan is invisible to the app.
-3. Complete the **payments profile** under Setup → Payments profile.
+**iOS and Android show a sign-in prompt and nothing else.** No price, no
+Subscribe button, no mention that a website exists.
 
-### Server credentials
-- Google Cloud console → create a **service account**, grant it access in Play
-  Console under Users and permissions with *View financial data* and *Manage
-  orders and subscriptions*.
-- Download the service-account **JSON key** for the billing service.
-- Enable the **Google Play Android Developer API** for that project.
+This is not a limitation of the code. App Store guideline 3.1.1 requires
+digital features sold *inside* an app to use In-App Purchase, and Play's
+payments policy says the same. Selling only on the web is permitted for a
+genuine multiplatform service under 3.1.3(b) — you may let people use what they
+bought elsewhere — but the mobile app must neither sell nor **steer**. Linking
+to the purchase page, or even naming it, is steering.
 
-Use `purchases.subscriptionsv2.get` to verify. Set up **Real-time developer
-notifications** via Pub/Sub pointing at `https://your-billing/webhooks/google`,
-for the same reason as Apple's.
+So `purchaseAllowedHere` in `lib/billing/billing_config.dart` is false on iOS
+and Android, and there are tests asserting the paywall shows no price and no
+outside-purchase hint in that state. **Do not "fix" that by adding a link.**
 
-### Testing
-Add **licence testers** under Setup → Licence testing. Their purchases are free
-and renew on an accelerated clock.
+The one exception worth knowing: since the 2025 US injunction, apps on the US
+storefront may link out. The rules differ by country, so if you want that,
+check the current position for everywhere you sell before changing it.
 
 ---
 
-## 5. Stripe (web and desktop)
+## 3. Supabase
 
-1. Create a **Product** with a **recurring yearly $12 Price**.
-2. Use **Stripe Checkout** rather than building a card form — it keeps card
-   data entirely out of your systems, which is most of what PCI compliance
-   would otherwise mean for you.
-3. Enable **Stripe Tax** if you are selling internationally. Digital-goods VAT
-   in the EU and UK applies from the first sale, with no threshold.
-4. Set a webhook to `https://your-billing/webhooks/stripe` for
-   `checkout.session.completed`, `customer.subscription.updated` and
-   `customer.subscription.deleted`. Keep the **signing secret** — a webhook
-   whose signature you do not verify is an open door to granting free
-   subscriptions.
+> **Blocked right now.** Creating this needs a new project, and the
+> organisation is at its 2-project free limit (`gravity-sports-booking` and
+> `natehale05-gif's Project`, both in real use). Free one up, or upgrade the
+> org, then apply the migration below.
 
-### The Apple rule worth knowing
-Selling the same subscription on your own website is allowed. What is
-restricted is *steering* — linking to it, or telling users about it, from
-inside the iOS app. In the US, following the 2025 injunction, apps may link
-out; elsewhere the rules are tighter and vary. **The app deliberately contains
-no link to the web purchase page**, and that should stay true unless you have
-checked the current rules for the countries you sell in.
-
----
-
-## 6. Secrets the billing service needs
-
-| Name | From |
-| --- | --- |
-| `APPLE_ISSUER_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | App Store Connect integration key |
-| `APPLE_BUNDLE_ID` | `app.songsofthechurch.songsOfTheChurch` |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Cloud service account |
-| `GOOGLE_PACKAGE_NAME` | `app.songsofthechurch.songs_of_the_church` |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` | Stripe dashboard |
-| `JWT_SIGNING_KEY` | generate one; rotating it signs everyone out |
-| `DATABASE_URL` | wherever the service stores accounts |
-
-None of these belong in the repository. Treat the Apple `.p8` and the Google
-JSON the way you would treat the Android keystore.
-
----
-
-## 7. Pointing the app at it
+### Apply the schema
 
 ```bash
-flutter build apk --release --dart-define=BILLING_URL=https://your-billing
+supabase link --project-ref <new-ref>
+supabase db push
 ```
 
-Or set a repository **variable** `BILLING_URL` so both workflows pass it
-through, exactly as `RELAY_URL` works. Remember that setting it changes the app
-from "everything free" to "extras gated" — so it takes effect only in builds
-made after it is set, and you should test a build with it before releasing one.
+`supabase/migrations/20260804000000_entitlements.sql` creates the
+`entitlements` table with row level security: an authenticated user can read
+**only their own row**, and there is deliberately no insert or update policy at
+all. An entitlement a client could write is an entitlement anyone can grant
+themselves.
+
+### Deploy the webhook
+
+```bash
+supabase functions deploy revenuecat-webhook --no-verify-jwt
+supabase secrets set REVENUECAT_WEBHOOK_SECRET='<a long random string>'
+```
+
+`--no-verify-jwt` is required and safe: RevenueCat cannot present a Supabase
+user JWT, so the request is authenticated by that shared secret instead. The
+function refuses every event if the secret is unset, rather than failing open.
+
+### Email
+
+Supabase's built-in email sender is rate-limited and not for production. Set up
+SMTP under Authentication → Emails before launch, or sign-in codes will start
+silently failing.
 
 ---
 
-## 8. What the stores will now ask that they did not before
+## 4. RevenueCat
 
-`docs/store-submission.md` was written when the app collected nothing. Both
-answers change once billing ships:
+1. Create a project. Add a **Web Billing** app (formerly RC Billing) and
+   connect your Stripe account.
+2. Create a product at **$12/year** and an entitlement called `plus`.
+3. Create a **paywall / purchase link**. Its URL goes into `PURCHASE_URL`.
+4. **Integrations → Webhooks** → point at
+   `https://<ref>.supabase.co/functions/v1/revenuecat-webhook`, and set the
+   Authorization header to the same `REVENUECAT_WEBHOOK_SECRET`.
 
-**Apple, App Privacy.** No longer "Data Not Collected". Declare:
-- *Contact Info → Email Address* — linked to identity, used for App
-  Functionality. Not used for tracking.
+### The event handling worth understanding
+
+`supabase/functions/revenuecat-webhook/index.ts` treats `CANCELLATION` as
+**informational, not revoking**. In RevenueCat that event means auto-renew was
+turned off, not that access ended — somebody who cancels on day one has paid
+for the year and keeps it until `EXPIRATION`. Treating cancellation as
+revocation would cut off paying subscribers, which is the kind of bug you hear
+about from angry customers rather than from tests.
+
+Anonymous subscribers (`$RCAnonymousID:…`) are acknowledged and ignored, since
+they cannot map to an account. The function returns 5xx on a storage failure so
+RevenueCat retries — silently losing a renewal event would expire someone who
+has paid.
+
+---
+
+## 5. Building with it
+
+```bash
+flutter build web --release \
+  --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=sb_publishable_... \
+  --dart-define=PURCHASE_URL=https://pay.songsofthechurch.app/plus
+```
+
+Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `PURCHASE_URL` as repository
+variables so both workflows pass them through, exactly as `RELAY_URL` does.
+
+The publishable key is meant to ship in a client — RLS is what protects the
+data, not the secrecy of that key. **The service role key must never appear in
+the app**, only in the edge function's secrets.
+
+`PURCHASE_URL` is read on every platform but only *used* where
+`purchaseAllowedHere` allows, so setting it does not put a purchase button in
+the iOS build.
+
+---
+
+## 6. What the stores are told
+
+This replaces the "Data Not Collected" answers in
+[`docs/store-submission.md`](store-submission.md), which were written when the
+app collected nothing.
+
+**Apple, App Privacy:**
+- *Contact Info → Email Address* — linked to identity, App Functionality.
 - *Purchases → Purchase History* — linked to identity, App Functionality.
+- Tracking: **No**.
 
-Tracking stays **No**: nothing is shared with data brokers or combined with
-data from other apps.
+Update `ios/Runner/PrivacyInfo.xcprivacy` to match before submitting.
 
-**Google Play, Data safety.** No longer "No" to the first question. Declare
-Personal info → Email address, and Financial info → Purchase history, both
-*collected*, both required, both encrypted in transit, with account deletion
-available on request. Play requires an in-app or documented **account deletion**
-route once accounts exist — the privacy policy commits to deletion on request,
-which satisfies it, but a link in the app is better.
+**Google Play, Data safety:** Personal info → Email address, and Financial info
+→ Purchase history. Both collected, both required, encrypted in transit,
+deletion available on request.
 
-**Review notes.** Give both reviewers a working test account with an active
-subscription, plus a sandbox/licence tester. A reviewer who cannot get past the
-paywall rejects the build.
+**Both:** because accounts now exist, Play requires a documented account
+deletion route. The privacy policy commits to deletion on request, which
+satisfies it; an in-app button would be better.
+
+**Review notes.** Give reviewers a test account that already has an active
+subscription. A reviewer on iOS *cannot buy one* — that is the whole point of
+the design — so without a pre-entitled account they will see a sign-in wall and
+reject the build. This is the single most likely rejection reason here, so make
+the note explicit.
 
 ---
 
-## 9. Order of operations
+## 7. Order of operations
 
-1. Settle the song licensing (see `docs/store-submission.md` §0). Selling
-   access raises the stakes on this considerably.
-2. Have a lawyer look at `web/terms.html`, particularly the song-rights
-   paragraph, and add a governing-law clause.
-3. Apple and Google agreements, tax and banking — these gate everything and can
-   take days.
-4. Create the three products with the same product ID.
-5. Deploy the billing service; set its secrets.
-6. Build with `BILLING_URL` and test end to end with sandbox accounts on both
-   stores, including a renewal and a cancellation.
-7. Only then set the repository variable and cut a release.
+1. Settle the song licensing (`docs/store-submission.md` §0). Selling access
+   raises the stakes considerably.
+2. Have a lawyer read `web/terms.html`, especially the song-rights paragraph,
+   and add a governing-law clause.
+3. Free up a Supabase project slot; apply the migration and deploy the function.
+4. Set up RevenueCat and Stripe; wire the webhook.
+5. Build the **web** app with all three defines and buy a real subscription
+   end to end.
+6. Confirm the entitlement then appears on a mobile build after signing in with
+   the same email — that is the cross-platform claim, and it is worth proving
+   before anyone pays for it.
+7. Only then set the repository variables and cut a release.
