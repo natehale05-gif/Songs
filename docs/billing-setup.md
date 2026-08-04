@@ -62,36 +62,55 @@ check the current position for everywhere you sell before changing it.
 
 ---
 
-## 3. Supabase
+## 3. Supabase — already done
 
-> **Blocked right now.** Creating this needs a new project, and the
-> organisation is at its 2-project free limit (`gravity-sports-booking` and
-> `natehale05-gif's Project`, both in real use). Free one up, or upgrade the
-> org, then apply the migration below.
+Applied to the existing project `natehale05-gif's Project`:
 
-### Apply the schema
+| | |
+| --- | --- |
+| Project ref | `xmjaqizlrlsvjbwqmtdo` |
+| URL | `https://xmjaqizlrlsvjbwqmtdo.supabase.co` |
+| Publishable key | `sb_publishable_Ga1mK-hAm42HO6SCLT6kYQ_Zcjqos31` |
+| Webhook URL | `https://xmjaqizlrlsvjbwqmtdo.supabase.co/functions/v1/revenuecat-webhook` |
+
+The `songs_entitlements` table is live with row level security: an
+authenticated user can read **only their own row**, and there is deliberately
+no insert or update policy at all. Verified by attempting an insert as an
+authenticated role — it was refused. An entitlement a client could write is an
+entitlement anyone can grant themselves.
+
+The `revenuecat-webhook` function is deployed with JWT verification off, which
+is required and safe: RevenueCat cannot present a Supabase user JWT, so the
+request is authenticated by a shared secret instead.
+
+### The one step left here
 
 ```bash
-supabase link --project-ref <new-ref>
-supabase db push
+supabase secrets set REVENUECAT_WEBHOOK_SECRET='<a long random string>' \
+  --project-ref xmjaqizlrlsvjbwqmtdo
 ```
 
-`supabase/migrations/20260804000000_entitlements.sql` creates the
-`entitlements` table with row level security: an authenticated user can read
-**only their own row**, and there is deliberately no insert or update policy at
-all. An entitlement a client could write is an entitlement anyone can grant
-themselves.
+**Until this is set the webhook refuses every event** with a 500 — it fails
+closed rather than open, so no entitlement can be granted by anyone who simply
+finds the URL. Use the same value as the Authorization header in RevenueCat.
 
-### Deploy the webhook
+### Sharing a project with another product
 
-```bash
-supabase functions deploy revenuecat-webhook --no-verify-jwt
-supabase secrets set REVENUECAT_WEBHOOK_SECRET='<a long random string>'
-```
+This project also runs an unrelated application, with its own `profiles`,
+`subscriptions` and `usage_events` tables. Two consequences worth holding onto:
 
-`--no-verify-jwt` is required and safe: RevenueCat cannot present a Supabase
-user JWT, so the request is authenticated by that shared secret instead. The
-function refuses every event if the secret is unset, rather than failing open.
+- **`auth.users` is shared.** The same email address is the same account in
+  both products. Somebody who signs up for the other one can sign into Songs
+  with those credentials, and vice versa; deleting an account removes it from
+  both. Nothing leaks between the two beyond that — Songs reads only its own
+  table, and there is no trigger on `auth.users`, so a Songs sign-up writes
+  nothing into the other product's tables.
+- **Two subscription systems now live side by side.** `public.subscriptions`
+  belongs to the other product; `public.songs_entitlements` is this one. They
+  are unrelated, which is why the names differ.
+
+If Songs grows, move it to its own project. That means migrating accounts, so
+it is much cheaper to do before there are subscribers than after.
 
 ### Email
 

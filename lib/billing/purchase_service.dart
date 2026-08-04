@@ -26,7 +26,7 @@ class SupabaseEntitlementSource implements EntitlementSource {
     }
 
     final Map<String, dynamic>? row = await _client
-        .from('entitlements')
+        .from('songs_entitlements')
         .select('active, expires_at, source')
         .eq('user_id', user.id)
         .maybeSingle();

@@ -109,7 +109,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     { auth: { persistSession: false } },
   );
 
-  const { error } = await supabase.from('entitlements').upsert(
+  const { error } = await supabase.from('songs_entitlements').upsert(
     {
       user_id: appUserId,
       product_id: String(event.product_id ?? 'plus_yearly'),
