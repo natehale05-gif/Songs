@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'app_state.dart';
+import 'billing/entitlement_controller.dart';
+import 'billing/purchase_service.dart';
 import 'live/live_controller.dart';
 import 'screens/library_screen.dart';
 import 'theme.dart';
@@ -16,6 +18,12 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()..init()),
         ChangeNotifierProvider(create: (_) => LiveSessionController()),
+        ChangeNotifierProvider(
+            create: (_) => EntitlementController()..init()),
+        // Replaced per platform once billing is configured; see
+        // docs/billing-setup.md.
+        Provider<PurchaseService>(
+            create: (_) => const UnconfiguredPurchaseService()),
       ],
       child: const SongsApp(),
     ),

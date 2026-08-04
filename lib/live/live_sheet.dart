@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../app_state.dart';
+import '../billing/paywall_sheet.dart';
+import '../billing/plus_gate.dart';
 import '../theme.dart';
 import '../ui_kit.dart';
 import 'connection_info.dart';
@@ -49,7 +51,9 @@ class _LiveSheetState extends State<_LiveSheet> {
   LiveMode? _transport;
 
   LiveMode _transportFor(LiveSessionController live) =>
-      _transport ??= live.onlineAvailable ? LiveMode.online : LiveMode.lan;
+      _transport ??= (live.onlineAvailable && hasPlus(context))
+          ? LiveMode.online
+          : LiveMode.lan;
 
   @override
   void dispose() {
@@ -393,8 +397,18 @@ class _LiveSheetState extends State<_LiveSheet> {
                 icon: Icons.public,
                 selected: selected == LiveMode.online,
                 enabled: live.onlineAvailable,
+                // Online is the one live transport with a running cost — it
+                // needs the relay — so it sits behind Plus alongside the other
+                // leader tools. Same WiFi stays free and always will.
                 onTap: live.onlineAvailable
-                    ? () => setState(() => _transport = LiveMode.online)
+                    ? () async {
+                        if (!await requirePlus(
+                            context, p, PlusFeature.onlineGroups)) {
+                          return;
+                        }
+                        if (!mounted) return;
+                        setState(() => _transport = LiveMode.online);
+                      }
                     : null,
               ),
             ],

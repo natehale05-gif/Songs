@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../billing/paywall_sheet.dart';
+import '../billing/plus_gate.dart';
 import '../live/live_controller.dart';
 import '../live/live_sheet.dart';
 import '../models.dart';
@@ -142,8 +144,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
           : FloatingActionButton.extended(
               backgroundColor: p.navy,
               foregroundColor: Colors.white,
-              onPressed: () {
+              onPressed: () async {
                 Haptics.light();
+                if (!await requirePlus(context, p, PlusFeature.setList)) {
+                  return;
+                }
+                if (!mounted) return;
                 setState(() => _setListMode = true);
               },
               icon: const Icon(Icons.queue_music, size: 20),
@@ -531,8 +537,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  void _beginSetList(AppState state) {
+  Future<void> _beginSetList(AppState state) async {
     if (state.setList.isEmpty) return;
+    if (!await requirePlus(context, _palette, PlusFeature.presentation)) {
+      return;
+    }
+    if (!mounted) return;
     Navigator.of(context).push(
       appPage(
         (_) => SetListPresentScreen(songs: state.setList),
@@ -685,8 +695,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 Row(
                   children: [
                     Pressable(
-                      onTap: () {
+                      onTap: () async {
                         Haptics.light();
+                        if (!await requirePlus(
+                            context, p, PlusFeature.favorites)) {
+                          return;
+                        }
                         state.toggleFavorite(song.id);
                       },
                       child: Padding(

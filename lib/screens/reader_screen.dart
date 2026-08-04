@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../billing/paywall_sheet.dart';
+import '../billing/plus_gate.dart';
 import '../audio.dart';
 import '../live/live_controller.dart';
 import '../models.dart';
@@ -110,6 +112,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
   ReaderPalette get _p => context.read<AppState>().theme == AppThemeMode.dark
       ? ReaderPalette.dark
       : ReaderPalette.light;
+
+  /// The reader has its own palette, but sheets shared with the rest of the
+  /// app (the paywall) expect the app-wide one.
+  AppPalette get _appPalette =>
+      context.read<AppState>().theme == AppThemeMode.dark
+          ? AppPalette.dark
+          : AppPalette.light;
 
   List<SongPart> get _activeParts {
     var vc = 0;
@@ -240,8 +249,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           const SizedBox(width: 6),
           IconButton(
-            onPressed: () {
+            onPressed: () async {
               Haptics.light();
+              if (!await requirePlus(
+                  context, _appPalette, PlusFeature.favorites)) {
+                return;
+              }
               state.toggleFavorite(_song.id);
             },
             icon: Icon(isFav ? Icons.favorite : Icons.favorite_border,
