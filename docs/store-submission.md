@@ -15,7 +15,7 @@ Facts you will be asked for repeatedly:
 | Support URL | `https://github.com/natehale05-gif/Songs/issues` |
 | Category | Reference (Apple) · Books & Reference (Play) |
 | Age rating | 4+ / Everyone |
-| Price | Free, no in-app purchases |
+| Price | Free; one optional auto-renewing subscription at $12/year |
 | iOS deployment target | 13.0, iPhone and iPad |
 | Android | minSdk 24, targetSdk 36 |
 
@@ -115,9 +115,15 @@ outside the store. iOS updates come from the App Store alone.
 
 ### App Privacy ("nutrition labels")
 
-Answer **Data Not Collected**. That is accurate and it must stay consistent
-with `PrivacyInfo.xcprivacy`, which declares `NSPrivacyCollectedDataTypes` as
-empty.
+> **This section changes once the paid tier ships.** Everything below describes
+> a build with no billing configured. When `BILLING_URL` is set, accounts and
+> purchases exist and the answers are different — see
+> [`docs/billing-setup.md`](billing-setup.md) §8, and update
+> `ios/Runner/PrivacyInfo.xcprivacy` to match before submitting.
+
+With billing off, answer **Data Not Collected**. That is accurate and it must
+stay consistent with `PrivacyInfo.xcprivacy`, which declares
+`NSPrivacyCollectedDataTypes` as empty.
 
 The one thing to understand before you answer: an **Online** small-group
 session sends the current verse and the display names through a relay. Apple's
@@ -169,8 +175,13 @@ Also worth stating: the app requires no account and works fully offline.
   permission is denied (join codes can be typed). Keep it that way.
 - **5.1.2** — no data is shared with third parties.
 
-Sign in with Apple, account deletion, and subscription rules do not apply:
-there is no account.
+Sign in with Apple, account deletion, and the subscription rules do not apply
+to a build with billing off, because there is no account and nothing is sold.
+They all apply once the paid tier ships — including Guideline 3.1.2, which is
+what `lib/billing/paywall_sheet.dart` and `web/terms.html` exist to satisfy.
+Note that offering an email sign-in does **not** by itself require Sign in with
+Apple; that obligation attaches to third-party social logins, which this does
+not use.
 
 ---
 
@@ -186,6 +197,10 @@ Play rejects a re-used `versionCode`, which means you cannot re-upload the
 artefact from a re-run — trigger a new run instead.
 
 ### Data safety form
+
+> As above, this describes a build with no billing configured. With the paid
+> tier on, email address and purchase history are collected — see
+> [`docs/billing-setup.md`](billing-setup.md) §8.
 
 | Question | Answer |
 | --- | --- |

@@ -94,6 +94,18 @@ Until those exist the workflow still builds an APK, but signs it with the
 throwaway debug key: it installs fine, yet a later release won't upgrade it in
 place. **Back the keystore up** — losing it means the same thing permanently.
 
+### Songs of the Church Plus
+
+The hymnal is free and stays free — all 715 songs, search and the reader. An
+optional **$12/year** subscription covers the leader tools: set lists,
+presentation mode, favourites, and online small groups. Anyone already using
+the app before the paid tier keeps everything, permanently.
+
+Nothing is gated until `BILLING_URL` is set, so a build without it behaves
+exactly as it always has. Setting it up — store products, Apple/Play/Stripe
+credentials, and what the stores then ask about data — is in
+[`docs/billing-setup.md`](docs/billing-setup.md).
+
 ### Publishing to the App Store and Google Play
 
 The repository already carries what the stores check — a published
