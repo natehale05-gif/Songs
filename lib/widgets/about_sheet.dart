@@ -3,13 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../theme.dart';
 import '../ui_kit.dart';
+import '../billing/billing_config.dart';
 import '../update/update_service.dart';
-
-/// Canonical privacy policy. Served from the same GitHub Pages site as the web
-/// app (`web/privacy.html`), and the URL given to both app stores — all three
-/// have to stay the same document.
-const String kPrivacyPolicyUrl =
-    'https://natehale05-gif.github.io/Songs/privacy.html';
 
 const String kProjectUrl = 'https://github.com/$kRepoOwner/$kRepoName';
 const String kIssuesUrl = '$kProjectUrl/issues';
@@ -79,12 +74,13 @@ class _AboutSheet extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'The whole hymnal is stored in the app, so it works with no '
-            'connection at all. There is no account, no advertising and no '
-            'analytics — your favourites stay on this device.',
+            'connection at all. All 715 songs are free, there is no '
+            'advertising, and nothing you read is tracked.',
             style: TextStyle(fontSize: 15, height: 1.4, color: p.label2),
           ),
           const SizedBox(height: 20),
-          _row(p, 'Privacy Policy', kPrivacyPolicyUrl),
+          _row(p, 'Privacy Policy', kPrivacyUrl),
+          _row(p, 'Terms of Use', kTermsUrl),
           _row(p, 'Source Code', kProjectUrl),
           _row(p, 'Report a Problem', kIssuesUrl),
         ],
