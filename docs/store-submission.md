@@ -25,7 +25,7 @@ Facts you will be asked for repeatedly:
 
 **The song texts are the real risk, not the code.** Store review will not check
 copyright, but a rights holder can have a listing pulled at any time, and
-"Songs of the Church" is a published hymnal title. Most of the 715 songs here
+"Songs of the Church" is a published hymnal title. Most of the 702 songs here
 are 18th- and 19th-century texts that are unambiguously public domain, but the
 collection also contains 20th-century works, translations, and arrangements
 that may not be. A translation or arrangement carries its own copyright even

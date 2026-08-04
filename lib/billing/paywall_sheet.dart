@@ -180,7 +180,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
             ),
             const SizedBox(height: 6),
             Text(
-              'All 715 songs, search and the reader stay free, always. '
+              'All 702 songs, search and the reader stay free, always. '
               'Plus adds the tools for leading:',
               style: TextStyle(fontSize: 15, height: 1.4, color: p.label2),
             ),

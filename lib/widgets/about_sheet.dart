@@ -74,7 +74,7 @@ class _AboutSheet extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'The whole hymnal is stored in the app, so it works with no '
-            'connection at all. All 715 songs are free, there is no '
+            'connection at all. All 702 songs are free, there is no '
             'advertising, and nothing you read is tracked.',
             style: TextStyle(fontSize: 15, height: 1.4, color: p.label2),
           ),

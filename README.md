@@ -13,7 +13,7 @@ from a single codebase.
 [![Android](https://img.shields.io/badge/Download-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/natehale05-gif/Songs/releases/latest/download/songs-of-the-church.apk)
 [![Web](https://img.shields.io/badge/Open-in%20browser-1C3975?style=for-the-badge&logo=googlechrome&logoColor=white)](https://natehale05-gif.github.io/Songs/)
 
-One file per platform, and all 715 songs work offline the moment it opens.
+One file per platform, and all 702 songs work offline the moment it opens.
 
 | Platform | You get | What to do |
 | --- | --- | --- |
@@ -96,15 +96,15 @@ place. **Back the keystore up** — losing it means the same thing permanently.
 
 ### Songs of the Church Plus
 
-The hymnal is free and stays free — all 715 songs, search and the reader. An
+The hymnal is free and stays free — all 702 songs, search and the reader. An
 optional **$12/year** subscription covers the leader tools: set lists,
 presentation mode, favourites, and online small groups. Anyone already using
 the app before the paid tier keeps everything, permanently.
 
-Nothing is gated until `BILLING_URL` is set, so a build without it behaves
-exactly as it always has. Setting it up — store products, Apple/Play/Stripe
-credentials, and what the stores then ask about data — is in
-[`docs/billing-setup.md`](docs/billing-setup.md).
+It is sold on the web only, through RevenueCat, with accounts in Supabase —
+not through the App Store or Play. Nothing is gated until `SUPABASE_URL` and
+`SUPABASE_ANON_KEY` are compiled in, so a build without them behaves exactly as
+it always has. Setup is in [`docs/billing-setup.md`](docs/billing-setup.md).
 
 ### Publishing to the App Store and Google Play
 
@@ -114,12 +114,13 @@ compliance answer, and a Play-format `.aab` alongside the APK. What is left is
 developer accounts, signing identities and the store questionnaires, all of
 which are walked through in
 [`docs/store-submission.md`](docs/store-submission.md) — including the one
-thing worth settling before spending any money, which is confirming you have
-the right to distribute each song's text.
+thing worth settling before spending any money. On that: every song now passes
+`tool/audit_song_rights.py`, and what it does and does not prove is written up
+in [`docs/song-rights.md`](docs/song-rights.md).
 
 ## Features
 
-- **715 songs** across English, Spanish, Hebrew, Greek, Albanian and Chinese,
+- **702 songs** across English, Spanish, Hebrew, Greek, Albanian and Chinese,
   each with verses, choruses, musical key, tune name and scripture reference.
 - **Library** — alphabetically grouped list with live search (title, author,
   scripture, verse text, hymn number), category filter pills with counts,
@@ -128,7 +129,7 @@ the right to distribute each song's text.
   **tap-through** modes, verse/chorus interleaving, a per-verse picker,
   adjustable font size, hold-to-play **starting pitch**, a chromatic
   **pitch pipe**, and a rendered **music staff** of each hymn's opening melody.
-- **Author biographies** — dates, quotes and cross-linked songs for 26 authors.
+- **Author biographies** — dates, quotes and cross-linked songs for 24 authors.
 - **Set lists** — build one manually or generate a random set, then run a
   full-screen **presentation mode** that flows title cards and verses across
   the whole set with tap navigation.
